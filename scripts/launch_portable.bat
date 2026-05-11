@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-cd /d "%~dp0\.."
+cd /d "%~dp0"
 
 title Fly Ticket - Portable Launcher
 echo Fly Ticket portable launcher

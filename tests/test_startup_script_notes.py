@@ -48,6 +48,13 @@ def test_portable_launcher_uses_bundled_python_only() -> None:
     assert "playwright install" not in content.lower()
 
 
+def test_portable_launcher_uses_its_own_directory_as_package_root() -> None:
+    content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
+
+    assert 'cd /d "%~dp0"' in content
+    assert 'cd /d "%~dp0\\.."' not in content
+
+
 def test_portable_launcher_sets_browser_path_and_finds_port() -> None:
     content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
 
