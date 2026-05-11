@@ -38,6 +38,14 @@ class StubSessionManager:
         self.closed = True
 
 
+class BrokenSessionManager:
+    async def open_relogin_window(self):
+        raise RuntimeError("Browser profile is already in use")
+
+    async def close(self):
+        pass
+
+
 def _read_session_state(db_path):
     with sqlite3.connect(db_path) as connection:
         return connection.execute(
@@ -88,6 +96,27 @@ def test_relogin_endpoint_returns_and_persists_missing_session_url(tmp_path) -> 
     assert response.json() == {"status": "missing_session_url", "url": ""}
     row = _read_session_state(settings.app_db_path)
     assert row[0] == "missing_session_url"
+    assert row[1] is None
+
+
+def test_relogin_endpoint_returns_chinese_json_when_browser_profile_is_busy(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    client = TestClient(
+        create_app(
+            settings=settings,
+            session_manager=BrokenSessionManager(),
+        )
+    )
+
+    response = client.post("/api/session/relogin")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": "relogin_failed",
+        "message": "无法打开携程登录窗口，请先关闭其它正在运行的飞票监控或携程登录窗口，然后重试",
+    }
+    row = _read_session_state(settings.app_db_path)
+    assert row[0] == "relogin_failed"
     assert row[1] is None
 
 

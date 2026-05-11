@@ -26,6 +26,9 @@ from app.settings import Settings
 
 
 BASE_DIR = Path(__file__).resolve().parent
+RELOGIN_FAILED_MESSAGE = (
+    "无法打开携程登录窗口，请先关闭其它正在运行的飞票监控或携程登录窗口，然后重试"
+)
 
 
 @asynccontextmanager
@@ -165,9 +168,13 @@ def create_app(
 
     @app.post("/api/session/relogin")
     async def relogin():
-        payload = await app.state.session_manager.open_relogin_window()
-        save_session_state(app.state.settings, payload.get("status", "unknown"))
-        return payload
+        try:
+            payload = await app.state.session_manager.open_relogin_window()
+            save_session_state(app.state.settings, payload.get("status", "unknown"))
+            return payload
+        except Exception:
+            save_session_state(app.state.settings, "relogin_failed")
+            return _error_response(503, "relogin_failed", RELOGIN_FAILED_MESSAGE)
 
     @app.post("/api/search", response_model=SearchResponse)
     async def search(request: SearchRequest):
