@@ -65,3 +65,19 @@ def test_development_requirements_include_runtime_requirements_file() -> None:
     includes = _requirement_includes("requirements-dev.txt")
 
     assert "requirements.txt" in includes
+
+
+def test_env_example_includes_portable_browser_path() -> None:
+    content = Path(".env.example").read_text(encoding="utf-8")
+
+    assert "PLAYWRIGHT_BROWSERS_PATH=runtime/ms-playwright" in content
+
+
+def test_settings_exposes_app_base_url(monkeypatch) -> None:
+    monkeypatch.setenv("APP_BASE_URL", "http://127.0.0.1:8123")
+
+    from app.settings import Settings
+
+    settings = Settings()
+
+    assert settings.app_base_url == "http://127.0.0.1:8123"

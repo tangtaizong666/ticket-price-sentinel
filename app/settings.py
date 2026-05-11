@@ -37,3 +37,6 @@ class Settings:
     )
     ctrip_search_url_template: str = os.getenv("CTRIP_SEARCH_URL_TEMPLATE", "")
     ctrip_session_url: str = os.getenv("CTRIP_SESSION_URL", "")
+    app_base_url: str = field(
+        default_factory=lambda: os.getenv("APP_BASE_URL", "http://127.0.0.1:8000")
+    )
