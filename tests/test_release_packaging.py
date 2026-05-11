@@ -195,3 +195,21 @@ def test_project_readme_mentions_windows_release_and_build_script() -> None:
     assert "FlyTicket-Windows" in content
     assert "启动机票监控.bat" in content
     assert "scripts/build_windows_portable.ps1" in content
+
+
+def test_ctrip_fixture_does_not_contain_obvious_live_session_material() -> None:
+    content = Path("tests/fixtures/ctrip_search_results.html").read_text(
+        encoding="utf-8"
+    ).lower()
+
+    forbidden_markers = [
+        "cookie",
+        "set-cookie",
+        "passport",
+        "ubt_trace_id",
+        "sessionid",
+        "authorization",
+        "csrf",
+    ]
+    for marker in forbidden_markers:
+        assert marker not in content
