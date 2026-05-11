@@ -81,3 +81,24 @@ def test_settings_exposes_app_base_url(monkeypatch) -> None:
     settings = Settings()
 
     assert settings.app_base_url == "http://127.0.0.1:8123"
+
+
+def test_windows_portable_build_script_exists_and_defines_layout() -> None:
+    script = Path("scripts/build_windows_portable.ps1")
+
+    assert script.exists()
+    content = script.read_text(encoding="utf-8")
+    assert "FlyTicket-Windows" in content
+    assert '"python"' in content
+    assert '"ms-playwright"' in content
+    assert "launch_portable.bat" in content
+    assert "Compress-Archive" in content
+
+
+def test_windows_portable_build_script_excludes_user_state() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    assert ".env" in content
+    assert "data" in content
+    assert "playwright-profile" in content
+    assert "requirements-dev.txt" in content
