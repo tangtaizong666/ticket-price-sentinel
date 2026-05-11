@@ -1,6 +1,6 @@
 import asyncio
 
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError, async_playwright
 
 from app.ctrip_capture import save_live_snapshot
 from app.ctrip_parser import parse_search_results
@@ -72,7 +72,7 @@ class CtripScraper:
                     "networkidle",
                     timeout=_NETWORK_IDLE_TIMEOUT_MS,
                 )
-            except TimeoutError as exc:
+            except PlaywrightTimeoutError as exc:
                 raise ScrapeFailedError(f"Ctrip search navigation timed out: {exc}") from exc
             return await page.content()
         finally:
@@ -99,7 +99,7 @@ class CtripScraper:
                             "networkidle",
                             timeout=_NETWORK_IDLE_TIMEOUT_MS,
                         )
-                    except TimeoutError as exc:
+                    except PlaywrightTimeoutError as exc:
                         raise ScrapeFailedError(
                             f"Ctrip search navigation timed out: {exc}"
                         ) from exc

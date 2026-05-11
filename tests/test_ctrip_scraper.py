@@ -3,6 +3,8 @@ import asyncio
 import unittest
 from unittest.mock import patch
 
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
 from app.ctrip_scraper import CtripScraper, ScrapeFailedError, _looks_like_session_expired
 from app.ctrip_session import CtripSessionManager
 from app.models import FlightResult, SearchRequest
@@ -91,7 +93,7 @@ class CtripScraperTests(unittest.IsolatedAsyncioTestCase):
         settings = Settings(
             ctrip_search_url_template="https://example.com/search?from={origin}&to={destination}&date={departure_date}",
         )
-        page = FakePage(goto_error=TimeoutError("timed out"))
+        page = FakePage(goto_error=PlaywrightTimeoutError("timed out"))
         context = FakeContext(page)
         playwright = FakePlaywright(context)
         scraper = CtripScraper(settings)
@@ -238,7 +240,7 @@ class SessionManagerContextReuseTests(unittest.IsolatedAsyncioTestCase):
             ctrip_search_url_template="https://example.com/search?from={origin}&to={destination}&date={departure_date}",
         )
         existing_relogin_page = FakePage()
-        search_page = FakePage(wait_error=TimeoutError("network idle timed out"))
+        search_page = FakePage(wait_error=PlaywrightTimeoutError("network idle timed out"))
         shared_context = NewPageContext(existing_relogin_page, search_page)
         manager = CtripSessionManager(settings)
         manager._context = shared_context
