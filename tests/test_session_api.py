@@ -29,15 +29,19 @@ def test_create_app_shares_one_session_manager_between_relogin_and_scraper(tmp_p
 class StubSessionManager:
     def __init__(self, payload: dict[str, str]):
         self.payload = payload
+        self.closed = False
 
     async def open_relogin_window(self):
         return self.payload
+
+    async def close(self):
+        self.closed = True
 
 
 def _read_session_state(db_path):
     with sqlite3.connect(db_path) as connection:
         return connection.execute(
-            "SELECT session_status FROM session_state WHERE id = 1"
+            "SELECT session_status, last_successful_scrape_at FROM session_state WHERE id = 1"
         ).fetchone()
 
 
@@ -62,7 +66,9 @@ def test_relogin_endpoint_returns_and_persists_login_started(tmp_path) -> None:
         "status": "login_started",
         "url": "https://example.invalid/session",
     }
-    assert _read_session_state(settings.app_db_path) == ("login_started",)
+    row = _read_session_state(settings.app_db_path)
+    assert row[0] == "login_started"
+    assert row[1] is None
 
 
 def test_relogin_endpoint_returns_and_persists_missing_session_url(tmp_path) -> None:
@@ -80,4 +86,17 @@ def test_relogin_endpoint_returns_and_persists_missing_session_url(tmp_path) -> 
 
     assert response.status_code == 200
     assert response.json() == {"status": "missing_session_url", "url": ""}
-    assert _read_session_state(settings.app_db_path) == ("missing_session_url",)
+    row = _read_session_state(settings.app_db_path)
+    assert row[0] == "missing_session_url"
+    assert row[1] is None
+
+
+def test_app_lifecycle_closes_session_manager(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    session_manager = StubSessionManager({"status": "login_started", "url": "https://example.invalid/session"})
+    app = create_app(settings=settings, session_manager=session_manager)
+
+    with TestClient(app):
+        assert session_manager.closed is False
+
+    assert session_manager.closed is True

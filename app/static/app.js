@@ -383,7 +383,7 @@ function createMonitorFlightButton(flight) {
     }
 
     button.addEventListener("click", () => {
-        window.open(targetUrl, "_blank");
+        window.open(targetUrl, "_blank", "noopener,noreferrer");
     });
     return button;
 }
@@ -572,12 +572,15 @@ function renderMonitorList(monitors) {
     if (!Array.isArray(monitors) || monitors.length === 0) {
         const article = document.createElement("article");
         article.className = "monitor-row empty-history";
-        article.innerHTML = `
-            <div>
-                <h3>No monitors saved yet</h3>
-                <p>Saved monitor tasks will appear here with quick edit and toggle actions.</p>
-            </div>
-        `;
+
+        const content = document.createElement("div");
+        const heading = document.createElement("h3");
+        heading.textContent = "No monitors saved yet";
+        const body = document.createElement("p");
+        body.textContent = "Saved monitor tasks will appear here with quick edit and toggle actions.";
+        content.append(heading, body);
+        article.appendChild(content);
+
         monitorListElement.appendChild(article);
         setMonitorDetail(null);
         return;

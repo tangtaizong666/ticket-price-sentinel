@@ -3,6 +3,7 @@ from datetime import date, time
 from fastapi.testclient import TestClient
 
 from app.ctrip_scraper import ScrapeFailedError, SessionExpiredError
+from app.history import get_session_state
 from app.main import create_app
 from app.models import FlightResult, SearchRequest
 from app.settings import Settings
@@ -104,6 +105,10 @@ def test_search_api_filters_results_returns_lowest_price_and_saves_history(tmp_p
             "updated_at": history_response.json()[0]["updated_at"],
         }
     ]
+    session_state = get_session_state(settings)
+    assert session_state is not None
+    assert session_state.session_status == "ready"
+    assert session_state.last_successful_scrape_at is not None
 
 
 def test_search_api_returns_503_when_scraper_session_expires(tmp_path) -> None:
@@ -125,6 +130,9 @@ def test_search_api_returns_503_when_scraper_session_expires(tmp_path) -> None:
         "error": "relogin_required",
         "message": "Ctrip session expired; relogin required",
     }
+    session_state = get_session_state(settings)
+    assert session_state is not None
+    assert session_state.session_status == "expired"
 
 
 def test_search_api_returns_502_when_scraper_cannot_parse_results(tmp_path) -> None:

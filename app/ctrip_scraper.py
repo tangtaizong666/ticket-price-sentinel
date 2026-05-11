@@ -60,7 +60,7 @@ class CtripScraper:
 
     async def _capture_with_shared_context(self, search_url: str) -> str:
         context = await self.session_manager.get_context()
-        page = context.pages[0] if context.pages else await context.new_page()
+        page = await context.new_page()
         try:
             await page.goto(
                 search_url,
@@ -73,7 +73,10 @@ class CtripScraper:
             )
         except TimeoutError as exc:
             raise ScrapeFailedError(f"Ctrip search navigation timed out: {exc}") from exc
-        return await page.content()
+        try:
+            return await page.content()
+        finally:
+            await page.close()
 
     async def _capture_with_fresh_context(self, search_url: str) -> str:
         self.settings.playwright_profile_dir.mkdir(parents=True, exist_ok=True)

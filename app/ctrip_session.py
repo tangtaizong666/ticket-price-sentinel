@@ -36,3 +36,14 @@ class CtripSessionManager:
                 headless=False,
             )
             return self._context
+
+    async def close(self) -> None:
+        context = self._context
+        playwright = self._playwright
+        self._context = None
+        self._playwright = None
+
+        if context is not None:
+            await context.close()
+        if playwright is not None:
+            await playwright.stop()

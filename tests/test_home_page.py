@@ -10,6 +10,9 @@ from app.monitoring import create_monitor_task, record_monitor_hit
 from app.settings import Settings
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
 def test_settings_uses_path_objects_for_task_2_paths() -> None:
     settings = Settings()
 
@@ -124,7 +127,7 @@ def test_home_page_renders_view_hit_dashboard_action_when_latest_hit_exists(tmp_
     assert f'data-monitor-hit-id="{hit.id}"' in html
 
 
-    script = Path("/mnt/c/my_pycharm/fly_ticket/app/static/app.js").read_text(encoding="utf-8")
+    script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
 
     start = script.index("function setMonitorDetail(record) {")
     end = script.index("function createMonitorRow(record) {")
@@ -135,8 +138,8 @@ def test_home_page_renders_view_hit_dashboard_action_when_latest_hit_exists(tmp_
 
 
 def test_dashboard_js_wires_primary_actions_and_latest_hit_focus() -> None:
-    script = Path("/mnt/c/my_pycharm/fly_ticket/app/static/app.js").read_text(encoding="utf-8")
-    template = Path("/mnt/c/my_pycharm/fly_ticket/app/templates/index.html").read_text(encoding="utf-8")
+    script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    template = (PROJECT_ROOT / "app/templates/index.html").read_text(encoding="utf-8")
 
     assert "handleDashboardAction" in script
     assert 'data-dashboard-action' in template
@@ -145,8 +148,15 @@ def test_dashboard_js_wires_primary_actions_and_latest_hit_focus() -> None:
     assert 'scrollIntoView' in script
 
 
+def test_dashboard_js_avoids_inner_html_and_opens_external_links_safely() -> None:
+    script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
+
+    assert ".innerHTML" not in script
+    assert 'window.open(targetUrl, "_blank", "noopener,noreferrer")' in script
+
+
 def test_monitor_detail_js_consumes_monitor_hit_id_for_deep_link_focus() -> None:
-    script = Path("/mnt/c/my_pycharm/fly_ticket/app/static/app.js").read_text(encoding="utf-8")
+    script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
 
     assert 'params.get("monitor_hit_id")' in script
     assert 'article.dataset.monitorHitId = String(hit.id)' in script
@@ -156,7 +166,7 @@ def test_monitor_detail_js_consumes_monitor_hit_id_for_deep_link_focus() -> None
 
 
 def test_view_hit_dashboard_action_preserves_hit_specific_focus_behavior() -> None:
-    script = Path("/mnt/c/my_pycharm/fly_ticket/app/static/app.js").read_text(encoding="utf-8")
+    script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
 
     start = script.index('if (action === "view-hit") {')
     end = script.index("    }\n}", start)
@@ -192,5 +202,3 @@ def test_home_page_renders_history_rows_with_stable_identifiers(tmp_path) -> Non
     assert 'data-history-id="1"' in html
     assert 'data-history-action="rerun" data-history-id="1"' in html
     assert 'data-history-action="edit" data-history-id="1"' in html
-
-

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 from app.dashboard import load_home_dashboard
 from app.db import init_db
@@ -32,6 +32,26 @@ def test_home_dashboard_shows_intermediate_status_when_login_has_only_started(tm
     assert dashboard.login_card.status == "登录进行中"
     assert dashboard.login_card.detail == "已打开登录窗口，请在携程完成登录"
     assert dashboard.login_card.action_label == "继续登录"
+
+
+def test_home_dashboard_shows_ready_and_expired_session_states(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    init_db(settings)
+    save_session_state(settings, "ready", datetime(2026, 5, 10, 9, 0, tzinfo=UTC))
+
+    ready_dashboard = load_home_dashboard(settings)
+
+    assert ready_dashboard.login_card.status == "已登录"
+    assert ready_dashboard.login_card.detail == "携程登录可用"
+    assert ready_dashboard.login_card.action_label == "重新登录"
+
+    save_session_state(settings, "expired")
+
+    expired_dashboard = load_home_dashboard(settings)
+
+    assert expired_dashboard.login_card.status == "登录已失效"
+    assert expired_dashboard.login_card.detail == "请重新登录携程后再继续"
+    assert expired_dashboard.login_card.action_label == "重新登录"
 
 
 

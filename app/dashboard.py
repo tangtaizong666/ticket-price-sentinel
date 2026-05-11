@@ -30,7 +30,23 @@ def load_home_dashboard(settings: Settings) -> HomeDashboard:
     enabled_count = count_enabled_monitor_tasks(settings)
     latest_hit = get_latest_monitor_hit(settings)
 
-    if session_state is not None and session_state.session_status == "login_started":
+    if session_state is not None and session_state.session_status == "ready":
+        login_card = DashboardCard(
+            title="登录状态",
+            status="已登录",
+            detail="携程登录可用",
+            action_label="重新登录",
+            action_kind="relogin",
+        )
+    elif session_state is not None and session_state.session_status == "expired":
+        login_card = DashboardCard(
+            title="登录状态",
+            status="登录已失效",
+            detail="请重新登录携程后再继续",
+            action_label="重新登录",
+            action_kind="relogin",
+        )
+    elif session_state is not None and session_state.session_status == "login_started":
         login_card = DashboardCard(
             title="登录状态",
             status="登录进行中",

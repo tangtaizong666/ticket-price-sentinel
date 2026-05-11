@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -34,6 +35,9 @@ async def _lifespan(app: FastAPI):
         yield
     finally:
         await app.state.monitor_scheduler.stop()
+        close = getattr(app.state.session_manager, "close", None)
+        if close is not None:
+            await close()
 
 
 def _error_response(status_code: int, error: str, message: str) -> JSONResponse:
@@ -135,7 +139,13 @@ def create_app(
             flight_attribute_filters=history_record.flight_attribute_filters,
             airline_filters=history_record.airline_filters,
         )
-        return await run_search(app.state.settings, app.state.scraper, request)
+        response = await run_search(app.state.settings, app.state.scraper, request)
+        save_session_state(
+            app.state.settings,
+            "ready",
+            datetime.now(UTC),
+        )
+        return response
 
     @app.post("/api/session/relogin")
     async def relogin():
@@ -146,8 +156,15 @@ def create_app(
     @app.post("/api/search", response_model=SearchResponse)
     async def search(request: SearchRequest):
         try:
-            return await run_search(app.state.settings, app.state.scraper, request)
+            response = await run_search(app.state.settings, app.state.scraper, request)
+            save_session_state(
+                app.state.settings,
+                "ready",
+                datetime.now(UTC),
+            )
+            return response
         except SessionExpiredError as exc:
+            save_session_state(app.state.settings, "expired")
             return _error_response(503, "relogin_required", str(exc))
         except ScrapeFailedError as exc:
             return _error_response(502, "scrape_failed", str(exc))

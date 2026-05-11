@@ -111,9 +111,11 @@ def update_history(
 def save_session_state(
     settings: Settings,
     session_status: str,
-    last_successful_scrape_at: str | None = None,
+    last_successful_scrape_at: datetime | str | None = None,
 ) -> SessionState:
     now = datetime.now(UTC).isoformat()
+    if isinstance(last_successful_scrape_at, datetime):
+        last_successful_scrape_at = last_successful_scrape_at.isoformat()
     with connect(settings) as connection:
         connection.execute(
             """

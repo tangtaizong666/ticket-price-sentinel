@@ -1,5 +1,6 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+import logging
 from typing import Protocol
 
 from app.models import FlightResult, MonitorTask
@@ -7,6 +8,9 @@ from app.monitor_runner import evaluate_monitor_result, should_run_task
 from app.monitoring import list_monitor_tasks, record_monitor_hit, update_monitor_runtime_state
 from app.notifier import build_notification_message, send_desktop_notification
 from app.settings import Settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class MonitorScraper(Protocol):
@@ -42,7 +46,7 @@ class MonitorScheduler:
             try:
                 await self.tick_once()
             except Exception:
-                pass
+                logger.exception("Monitor scheduler tick failed")
             await asyncio.sleep(self.poll_seconds)
 
     async def tick_once(self) -> None:
@@ -87,4 +91,16 @@ class MonitorScheduler:
                     ),
                 )
             except Exception:
+                logger.exception("Monitor task %s failed", task.id)
+                now_after_failure = datetime.now(UTC)
+                update_monitor_runtime_state(
+                    self.settings,
+                    task.id,
+                    last_checked_at=now_after_failure,
+                    next_check_at=now_after_failure
+                    + timedelta(minutes=task.check_interval_minutes),
+                    last_seen_lowest_price=task.last_seen_lowest_price,
+                    last_notified_at=task.last_notified_at,
+                    last_notified_price=task.last_notified_price,
+                )
                 continue

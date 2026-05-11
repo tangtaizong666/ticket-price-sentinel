@@ -249,6 +249,7 @@ def test_monitor_scheduler_continues_after_task_failure(tmp_path, monkeypatch) -
         ("机票监控命中：bjs → sha", "当前最低价 ¥380，已达到你的目标价 ¥400")
     ]
     assert updated_failing_task is not None
-    assert updated_failing_task.last_checked_at is None
+    assert updated_failing_task.last_checked_at is not None
+    assert updated_failing_task.next_check_at > updated_failing_task.last_checked_at
     assert updated_succeeding_task is not None
     assert updated_succeeding_task.last_checked_at is not None

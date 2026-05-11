@@ -15,6 +15,7 @@ class FakePage:
         self.goto_error = goto_error
         self.goto_calls: list[tuple[str, str, int]] = []
         self.wait_calls: list[tuple[str, int]] = []
+        self.closed = False
 
     async def goto(self, url: str, wait_until: str, timeout: int | None = None) -> None:
         self.goto_calls.append((url, wait_until, timeout))
@@ -27,6 +28,9 @@ class FakePage:
     async def content(self) -> str:
         return self.html
 
+    async def close(self) -> None:
+        self.closed = True
+
 
 class FakeContext:
     def __init__(self, page: FakePage):
@@ -38,6 +42,15 @@ class FakeContext:
 
     async def close(self) -> None:
         self.closed = True
+
+
+class NewPageContext:
+    def __init__(self, existing_page: FakePage, new_page: FakePage):
+        self.pages = [existing_page]
+        self.new_pages = [new_page]
+
+    async def new_page(self) -> FakePage:
+        return self.new_pages.pop(0)
 
 
 class FakePlaywright:
@@ -154,13 +167,59 @@ class FakeStartedPlaywright:
         self.chromium = self
         self._context = context
         self.launch_calls: list[tuple[str, bool]] = []
+        self.stopped = False
 
     async def launch_persistent_context(self, user_data_dir: str, headless: bool):
         self.launch_calls.append((user_data_dir, headless))
         return self._context
 
+    async def stop(self):
+        self.stopped = True
+
 
 class SessionManagerContextReuseTests(unittest.IsolatedAsyncioTestCase):
+    async def test_shared_context_search_uses_isolated_page_and_closes_it(self) -> None:
+        request = SearchRequest(
+            origin_city="北京",
+            destination_city="上海",
+            departure_date=date(2026, 5, 20),
+        )
+        settings = Settings(
+            ctrip_search_url_template="https://example.com/search?from={origin}&to={destination}&date={departure_date}",
+        )
+        existing_relogin_page = FakePage()
+        search_page = FakePage()
+        shared_context = NewPageContext(existing_relogin_page, search_page)
+        manager = CtripSessionManager(settings)
+        manager._context = shared_context
+        scraper = CtripScraper(settings, session_manager=manager)
+        flights = [
+            FlightResult(
+                flight_no="MU1234",
+                airline="东航",
+                origin_city="北京",
+                destination_city="上海",
+                departure_time=time(8, 0),
+                arrival_time=time(10, 0),
+                is_direct=True,
+                stop_info="直飞",
+                price=500,
+                deeplink_url="https://example.com/flight",
+                fallback_search_url="https://example.com/search",
+            )
+        ]
+
+        with (
+            patch("app.ctrip_scraper.save_live_snapshot"),
+            patch("app.ctrip_scraper.parse_search_results", return_value=flights),
+        ):
+            result = await scraper.search(request)
+
+        self.assertEqual(result, flights)
+        self.assertEqual(existing_relogin_page.goto_calls, [])
+        self.assertEqual(len(search_page.goto_calls), 1)
+        self.assertTrue(search_page.closed)
+
     async def test_relogin_reuses_existing_context_and_does_not_launch_again(self) -> None:
         settings = Settings(ctrip_session_url="https://example.com/session")
         shared_context = FakeContext(FakePage())
@@ -195,6 +254,22 @@ class SessionManagerContextReuseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first["status"], "login_started")
         self.assertEqual(second["status"], "login_started")
         self.assertEqual(len(started_playwright.launch_calls), 1)
+
+    async def test_close_releases_persistent_context_and_playwright(self) -> None:
+        settings = Settings(ctrip_session_url="https://example.com/session")
+        shared_context = FakeContext(FakePage())
+        started_playwright = FakeStartedPlaywright(shared_context)
+        manager = CtripSessionManager(settings)
+        manager._playwright = started_playwright
+        manager._context = shared_context
+
+        await manager.close()
+        await manager.close()
+
+        self.assertTrue(shared_context.closed)
+        self.assertTrue(started_playwright.stopped)
+        self.assertIsNone(manager._context)
+        self.assertIsNone(manager._playwright)
 
     def test_session_expiry_detection_ignores_generic_login_text(self) -> None:
         html = "<html><body><div>login to view promotions and verify baggage rules</div></body></html>"
