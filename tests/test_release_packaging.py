@@ -102,3 +102,63 @@ def test_windows_portable_build_script_excludes_user_state() -> None:
     assert "data" in content
     assert "playwright-profile" in content
     assert "requirements-dev.txt" in content
+
+
+def test_windows_portable_build_downloads_are_staged_outside_package() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    assert re.search(
+        r'\$downloadsRoot\s*=\s*Join-Path\s+\$distRootPath\s+"_downloads"',
+        content,
+        re.IGNORECASE,
+    )
+    assert not re.search(
+        r'\$downloadsRoot\s*=\s*Join-Path\s+\$packageRoot\s+"_downloads"',
+        content,
+        re.IGNORECASE,
+    )
+
+
+def test_windows_portable_build_script_maps_launcher_to_package_root() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    assert re.search(
+        r'Copy-RequiredItem\s+-Source\s+\(Join-Path\s+\$repoRoot\s+"scripts[/\\]launch_portable\.bat"\)\s+'
+        r'-Destination\s+\(Join-Path\s+\$packageRoot\s+"启动机票监控\.bat"\)',
+        content,
+    )
+
+
+def test_windows_portable_build_script_does_not_copy_local_state_to_package() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    forbidden_package_copies = [
+        ".env",
+        ".venv",
+        "requirements-dev.txt",
+        "data",
+        "playwright-profile",
+        "app.db",
+        "_downloads",
+    ]
+    for name in forbidden_package_copies:
+        assert not re.search(
+            rf'Copy-\w+Item\s+-Source\s+\(Join-Path\s+\$repoRoot\s+"{re.escape(name)}"\)',
+            content,
+        )
+
+    assert re.search(
+        r'\$dataRoot\s*=\s*Join-Path\s+\$packageRoot\s+"data"',
+        content,
+        re.IGNORECASE,
+    )
+    assert re.search(
+        r'New-Item\s+-ItemType\s+Directory\s+-Force\s+-Path\s+\$dataRoot',
+        content,
+        re.IGNORECASE,
+    )
+    assert re.search(
+        r'Compress-Archive\s+-Path\s+\(Join-Path\s+\$packageRoot\s+"\*"\)',
+        content,
+        re.IGNORECASE,
+    )

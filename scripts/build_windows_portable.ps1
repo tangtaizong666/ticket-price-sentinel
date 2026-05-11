@@ -14,7 +14,7 @@ $runtimeRoot = Join-Path $packageRoot "runtime"
 $pythonRoot = Join-Path $runtimeRoot "python"
 $browserRoot = Join-Path $runtimeRoot "ms-playwright"
 $dataRoot = Join-Path $packageRoot "data"
-$downloadsRoot = Join-Path $packageRoot "_downloads"
+$downloadsRoot = Join-Path $distRootPath "_downloads"
 $archivePath = Join-Path $distRootPath "$packageName-$Version.zip"
 
 $excludedNames = @(
@@ -70,6 +70,7 @@ function Copy-OptionalItem {
 }
 
 Remove-PathIfExists -Path $packageRoot
+Remove-PathIfExists -Path $downloadsRoot
 Remove-PathIfExists -Path $archivePath
 
 New-Item -ItemType Directory -Force -Path $pythonRoot | Out-Null
