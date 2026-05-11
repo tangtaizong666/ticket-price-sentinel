@@ -26,21 +26,22 @@ if not exist ".venv\Scripts\python.exe" (
   if errorlevel 1 goto error
 )
 
-echo Installing development dependencies...
-call ".venv\Scripts\python.exe" -m pip install -r requirements-dev.txt
-if errorlevel 1 goto error
-
-echo Installing Playwright Chromium...
-call ".venv\Scripts\python.exe" -m playwright install chromium
-if errorlevel 1 goto error
-
 if not exist ".env" (
   copy ".env.example" ".env" >nul
   if errorlevel 1 goto error
 )
 
+echo Installing development dependencies...
+call ".venv\Scripts\python.exe" -m pip install -r requirements-dev.txt
+if errorlevel 1 goto error
+
+set "PLAYWRIGHT_BROWSERS_PATH=%CD%\runtime\ms-playwright"
+echo Installing Playwright Chromium...
+call ".venv\Scripts\python.exe" -m playwright install chromium
+if errorlevel 1 goto error
+
 echo Starting Fly Ticket at http://127.0.0.1:8000
-start "" http://127.0.0.1:8000
+start "" cmd /c "timeout /t 2 /nobreak >nul && start "" http://127.0.0.1:8000"
 call ".venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 if errorlevel 1 goto error
 
