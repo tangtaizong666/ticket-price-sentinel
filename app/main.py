@@ -139,13 +139,17 @@ def create_app(
             flight_attribute_filters=history_record.flight_attribute_filters,
             airline_filters=history_record.airline_filters,
         )
-        response = await run_search(app.state.settings, app.state.scraper, request)
-        save_session_state(
-            app.state.settings,
-            "ready",
-            datetime.now(UTC),
-        )
-        return response
+        try:
+            response = await run_search(app.state.settings, app.state.scraper, request)
+            save_session_state(
+                app.state.settings,
+                "ready",
+                datetime.now(UTC),
+            )
+            return response
+        except SessionExpiredError as exc:
+            save_session_state(app.state.settings, "expired")
+            return _error_response(503, "relogin_required", str(exc))
 
     @app.post("/api/session/relogin")
     async def relogin():

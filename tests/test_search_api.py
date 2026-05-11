@@ -154,3 +154,55 @@ def test_search_api_returns_502_when_scraper_cannot_parse_results(tmp_path) -> N
         "error": "scrape_failed",
         "message": "Unable to parse any flights from Ctrip search results",
     }
+
+
+def test_history_rerun_saves_ready_session_state_after_success(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    app = create_app(settings=settings, scraper=FakeScraper())
+    client = TestClient(app)
+
+    search_response = client.post(
+        "/api/search",
+        json={
+            "origin_city": "北京",
+            "destination_city": "上海",
+            "departure_date": date(2026, 5, 20).isoformat(),
+        },
+    )
+    history_id = search_response.json()["history_id"]
+
+    rerun_response = client.post(f"/api/history/{history_id}/rerun")
+
+    assert rerun_response.status_code == 200
+    session_state = get_session_state(settings)
+    assert session_state is not None
+    assert session_state.session_status == "ready"
+    assert session_state.last_successful_scrape_at is not None
+
+
+def test_history_rerun_returns_503_and_saves_expired_when_scraper_session_expires(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    setup_app = create_app(settings=settings, scraper=FakeScraper())
+    setup_client = TestClient(setup_app)
+    search_response = setup_client.post(
+        "/api/search",
+        json={
+            "origin_city": "北京",
+            "destination_city": "上海",
+            "departure_date": date(2026, 5, 20).isoformat(),
+        },
+    )
+    history_id = search_response.json()["history_id"]
+
+    app = create_app(settings=settings, scraper=ExpiredScraper())
+    client = TestClient(app)
+    response = client.post(f"/api/history/{history_id}/rerun")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": "relogin_required",
+        "message": "Ctrip session expired; relogin required",
+    }
+    session_state = get_session_state(settings)
+    assert session_state is not None
+    assert session_state.session_status == "expired"
