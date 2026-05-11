@@ -10,3 +10,4 @@ __pycache__/
 /data/*.html
 /tests/fixtures/last_live_search.html
 .superpowers/
+.worktrees/
