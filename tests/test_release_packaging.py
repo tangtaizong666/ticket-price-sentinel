@@ -213,6 +213,15 @@ def test_project_readme_mentions_windows_release_and_build_script() -> None:
     assert "scripts/build_windows_portable.ps1" in content
 
 
+def test_project_readme_highlights_chinese_user_and_developer_paths() -> None:
+    content = Path("README.md").read_text(encoding="utf-8")
+
+    assert "机票监控工作台" in content
+    assert "普通用户路径" in content
+    assert "开发者路径" in content
+    assert "问题排查" in content
+
+
 def test_ctrip_fixture_does_not_contain_obvious_live_session_material() -> None:
     content = Path("tests/fixtures/ctrip_search_results.html").read_text(
         encoding="utf-8"

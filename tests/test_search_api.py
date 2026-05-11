@@ -128,7 +128,7 @@ def test_search_api_returns_503_when_scraper_session_expires(tmp_path) -> None:
     assert response.status_code == 503
     assert response.json() == {
         "error": "relogin_required",
-        "message": "Ctrip session expired; relogin required",
+        "message": "携程登录已失效，请重新登录后再继续",
     }
     session_state = get_session_state(settings)
     assert session_state is not None
@@ -152,7 +152,7 @@ def test_search_api_returns_502_when_scraper_cannot_parse_results(tmp_path) -> N
     assert response.status_code == 502
     assert response.json() == {
         "error": "scrape_failed",
-        "message": "Unable to parse any flights from Ctrip search results",
+        "message": "这次没有成功读取携程结果，请重试一次",
     }
 
 
@@ -201,7 +201,7 @@ def test_history_rerun_returns_503_and_saves_expired_when_scraper_session_expire
     assert response.status_code == 503
     assert response.json() == {
         "error": "relogin_required",
-        "message": "Ctrip session expired; relogin required",
+        "message": "携程登录已失效，请重新登录后再继续",
     }
     session_state = get_session_state(settings)
     assert session_state is not None

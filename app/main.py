@@ -47,6 +47,14 @@ def _error_response(status_code: int, error: str, message: str) -> JSONResponse:
     )
 
 
+def _user_message_for_error(error: str, fallback: str) -> str:
+    messages = {
+        "relogin_required": "携程登录已失效，请重新登录后再继续",
+        "scrape_failed": "这次没有成功读取携程结果，请重试一次",
+    }
+    return messages.get(error, fallback)
+
+
 def create_app(
     settings: Settings | None = None, scraper=None, session_manager=None
 ) -> FastAPI:
@@ -147,9 +155,13 @@ def create_app(
                 datetime.now(UTC),
             )
             return response
-        except SessionExpiredError as exc:
+        except SessionExpiredError:
             save_session_state(app.state.settings, "expired")
-            return _error_response(503, "relogin_required", str(exc))
+            return _error_response(
+                503,
+                "relogin_required",
+                _user_message_for_error("relogin_required", "携程登录已失效，请重新登录后再继续"),
+            )
 
     @app.post("/api/session/relogin")
     async def relogin():
@@ -167,11 +179,19 @@ def create_app(
                 datetime.now(UTC),
             )
             return response
-        except SessionExpiredError as exc:
+        except SessionExpiredError:
             save_session_state(app.state.settings, "expired")
-            return _error_response(503, "relogin_required", str(exc))
-        except ScrapeFailedError as exc:
-            return _error_response(502, "scrape_failed", str(exc))
+            return _error_response(
+                503,
+                "relogin_required",
+                _user_message_for_error("relogin_required", "携程登录已失效，请重新登录后再继续"),
+            )
+        except ScrapeFailedError:
+            return _error_response(
+                502,
+                "scrape_failed",
+                _user_message_for_error("scrape_failed", "这次没有成功读取携程结果，请重试一次"),
+            )
 
     return app
 
