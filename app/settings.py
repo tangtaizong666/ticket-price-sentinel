@@ -40,3 +40,6 @@ class Settings:
     app_base_url: str = field(
         default_factory=lambda: os.getenv("APP_BASE_URL", "http://127.0.0.1:8000")
     )
+    monitor_realert_cooldown_hours: int = field(
+        default_factory=lambda: int(os.getenv("MONITOR_REALERT_COOLDOWN_HOURS", "6"))
+    )

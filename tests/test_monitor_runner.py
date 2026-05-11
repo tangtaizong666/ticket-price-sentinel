@@ -101,6 +101,40 @@ def test_evaluate_monitor_result_does_not_notify_for_same_price_repeat_hit() -> 
     assert evaluation.should_notify is False
 
 
+def test_evaluate_monitor_result_allows_repeat_alert_after_cooldown() -> None:
+    task = _build_task(
+        last_notified_at=datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
+        last_notified_price=380,
+    )
+
+    evaluation = evaluate_monitor_result(
+        task,
+        _build_flights(380, 420),
+        now=datetime(2026, 5, 10, 9, 0, tzinfo=UTC),
+        cooldown_hours=6,
+    )
+
+    assert evaluation.lowest_price == 380
+    assert evaluation.should_notify is True
+
+
+def test_evaluate_monitor_result_suppresses_repeat_alert_inside_cooldown() -> None:
+    task = _build_task(
+        last_notified_at=datetime(2026, 5, 10, 6, 0, tzinfo=UTC),
+        last_notified_price=380,
+    )
+
+    evaluation = evaluate_monitor_result(
+        task,
+        _build_flights(380, 420),
+        now=datetime(2026, 5, 10, 9, 0, tzinfo=UTC),
+        cooldown_hours=6,
+    )
+
+    assert evaluation.lowest_price == 380
+    assert evaluation.should_notify is False
+
+
 def test_evaluate_monitor_result_notifies_when_price_drops_below_last_notification() -> None:
     task = _build_task(last_notified_price=400)
 
