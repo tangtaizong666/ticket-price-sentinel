@@ -248,6 +248,75 @@ def test_monitor_scheduler_skips_duplicate_hits_and_non_due_tasks(tmp_path, monk
     assert updated_waiting_task.last_checked_at is None
 
 
+def test_monitor_scheduler_repeats_hit_after_cooldown(tmp_path, monkeypatch) -> None:
+    settings = Settings(
+        app_db_path=tmp_path / "app.db",
+        monitor_realert_cooldown_hours=6,
+    )
+    task = _build_scheduler_task(
+        settings,
+        next_check_at=datetime(2026, 5, 10, 8, 30, tzinfo=UTC),
+        last_notified_at=datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
+        last_notified_price=380,
+    )
+    scraper = _StubScraper(_build_flights(380, 420))
+    notifications: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(
+        "app.monitor_scheduler.send_desktop_notification",
+        lambda title, message: notifications.append((title, message)),
+    )
+
+    scheduler = MonitorScheduler(settings, scraper)
+    asyncio.run(scheduler.tick_once())
+
+    hits = list_monitor_hits(settings, task.id)
+    updated_task = get_monitor_task(settings, task.id)
+
+    assert len(scraper.calls) == 1
+    assert len(hits) == 1
+    assert hits[0].lowest_price == 380
+    assert notifications == [
+        ("机票监控命中：bjs → sha", "当前最低价 ¥380，已达到你的目标价 ¥400")
+    ]
+    assert updated_task is not None
+    assert updated_task.last_notified_price == 380
+
+
+def test_monitor_scheduler_respects_configured_realert_cooldown(tmp_path, monkeypatch) -> None:
+    settings = Settings(
+        app_db_path=tmp_path / "app.db",
+        monitor_realert_cooldown_hours=48,
+    )
+    task = _build_scheduler_task(
+        settings,
+        next_check_at=datetime(2026, 5, 10, 8, 30, tzinfo=UTC),
+        last_notified_at=datetime(2026, 5, 10, 1, 0, tzinfo=UTC),
+        last_notified_price=380,
+    )
+    scraper = _StubScraper(_build_flights(380, 420))
+    notifications: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(
+        "app.monitor_scheduler.send_desktop_notification",
+        lambda title, message: notifications.append((title, message)),
+    )
+
+    scheduler = MonitorScheduler(settings, scraper)
+    asyncio.run(scheduler.tick_once())
+
+    hits = list_monitor_hits(settings, task.id)
+    updated_task = get_monitor_task(settings, task.id)
+
+    assert len(scraper.calls) == 1
+    assert hits == []
+    assert notifications == []
+    assert updated_task is not None
+    assert updated_task.last_checked_at is not None
+    assert updated_task.last_seen_lowest_price == 380
+    assert updated_task.last_notified_price == 380
+
+
 
 def test_monitor_scheduler_continues_after_task_failure(tmp_path, monkeypatch) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")

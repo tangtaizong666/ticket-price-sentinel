@@ -57,7 +57,12 @@ class MonitorScheduler:
 
             try:
                 flights = await self.scraper.search(task)
-                evaluation = evaluate_monitor_result(task, flights)
+                evaluation = evaluate_monitor_result(
+                    task,
+                    flights,
+                    now=now,
+                    cooldown_hours=self.settings.monitor_realert_cooldown_hours,
+                )
                 should_record_hit = (
                     evaluation.should_notify and evaluation.lowest_price is not None
                 )
