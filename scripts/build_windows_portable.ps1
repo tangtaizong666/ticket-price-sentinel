@@ -69,6 +69,14 @@ function Copy-OptionalItem {
     }
 }
 
+function Remove-PackagedPythonCache {
+    Get-ChildItem -LiteralPath $packageRoot -Recurse -Directory -Filter "__pycache__" |
+        Remove-Item -Recurse -Force
+
+    Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Include "*.pyc", "*.pyo" |
+        Remove-Item -Force
+}
+
 Remove-PathIfExists -Path $packageRoot
 Remove-PathIfExists -Path $downloadsRoot
 Remove-PathIfExists -Path $archivePath
@@ -130,6 +138,8 @@ foreach ($stateName in $excludedState) {
         Remove-Item -LiteralPath $statePath -Recurse -Force
     }
 }
+
+Remove-PackagedPythonCache
 
 Compress-Archive -Path (Join-Path $packageRoot "*") -DestinationPath $archivePath -Force
 Write-Host "Created $archivePath"

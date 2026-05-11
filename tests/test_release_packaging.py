@@ -162,3 +162,18 @@ def test_windows_portable_build_script_does_not_copy_local_state_to_package() ->
         content,
         re.IGNORECASE,
     )
+
+
+def test_windows_portable_build_script_removes_nested_python_cache_files() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    assert re.search(
+        r'Get-ChildItem\s+-LiteralPath\s+\$packageRoot\s+-Recurse\s+-Directory\s+-Filter\s+"__pycache__"',
+        content,
+        re.IGNORECASE,
+    )
+    assert re.search(
+        r'Get-ChildItem\s+-LiteralPath\s+\$packageRoot\s+-Recurse\s+-File\s+-Include\s+"\*\.pyc",\s+"\*\.pyo"',
+        content,
+        re.IGNORECASE,
+    )
