@@ -60,7 +60,8 @@ def test_portable_launcher_sets_browser_path_and_finds_port() -> None:
 
     assert "PLAYWRIGHT_BROWSERS_PATH" in content
     assert "runtime\\ms-playwright" in content
-    assert "Get-NetTCPConnection" in content
+    assert "TcpListener" in content
+    assert ".Start()" in content
     assert 'set "APP_BASE_URL=http://127.0.0.1:%PORT%"' in content
     assert 'start "" cmd /c "timeout /t 2 /nobreak >nul && start "" "%APP_BASE_URL%""' in content
     assert content.index('set "APP_BASE_URL=http://127.0.0.1:%PORT%"') < content.index(
@@ -71,9 +72,10 @@ def test_portable_launcher_sets_browser_path_and_finds_port() -> None:
 def test_portable_launcher_port_probe_does_not_ignore_wildcard_listeners() -> None:
     content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
 
-    assert "Get-NetTCPConnection" in content
-    assert "-LocalPort %%P" in content
+    assert "TcpListener" in content
+    assert "[System.Net.IPAddress]::Parse('127.0.0.1')" in content
     assert "-LocalAddress 127.0.0.1" not in content
+    assert "Get-NetTCPConnection" not in content
 
 
 def test_portable_launcher_routes_error_branches_to_pausing_error_label() -> None:

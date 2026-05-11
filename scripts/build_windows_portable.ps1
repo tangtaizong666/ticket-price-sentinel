@@ -16,6 +16,8 @@ $browserRoot = Join-Path $runtimeRoot "ms-playwright"
 $dataRoot = Join-Path $packageRoot "data"
 $downloadsRoot = Join-Path $distRootPath "_downloads"
 $archivePath = Join-Path $distRootPath "$packageName-$Version.zip"
+$portableLauncherName = [string]::Concat([char[]](0x542f, 0x52a8, 0x673a, 0x7968, 0x76d1, 0x63a7)) + ".bat"
+$releaseReadmeName = "README_" + [string]::Concat([char[]](0x4f7f, 0x7528, 0x8bf4, 0x660e)) + ".txt"
 
 $excludedNames = @(
     ".env",
@@ -73,7 +75,8 @@ function Remove-PackagedPythonCache {
     Get-ChildItem -LiteralPath $packageRoot -Recurse -Directory -Filter "__pycache__" |
         Remove-Item -Recurse -Force
 
-    Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Include "*.pyc", "*.pyo" |
+    Get-ChildItem -LiteralPath $packageRoot -Recurse -File |
+        Where-Object { $_.Extension -in @(".pyc", ".pyo") } |
         Remove-Item -Force
 }
 
@@ -118,8 +121,8 @@ $env:PLAYWRIGHT_BROWSERS_PATH = $browserRoot
 
 Copy-RequiredItem -Source (Join-Path $repoRoot "app") -Destination (Join-Path $packageRoot "app")
 Copy-RequiredItem -Source (Join-Path $repoRoot ".env.example") -Destination (Join-Path $packageRoot ".env.example")
-Copy-OptionalItem -Source (Join-Path $repoRoot "README_使用说明.txt") -Destination (Join-Path $packageRoot "README_使用说明.txt")
-Copy-RequiredItem -Source (Join-Path $repoRoot "scripts/launch_portable.bat") -Destination (Join-Path $packageRoot "启动机票监控.bat")
+Copy-OptionalItem -Source (Join-Path $repoRoot $releaseReadmeName) -Destination (Join-Path $packageRoot $releaseReadmeName)
+Copy-RequiredItem -Source (Join-Path $repoRoot "scripts/launch_portable.bat") -Destination (Join-Path $packageRoot $portableLauncherName)
 
 foreach ($name in $excludedNames) {
     $path = Join-Path $packageRoot $name

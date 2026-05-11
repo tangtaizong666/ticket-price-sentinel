@@ -11,3 +11,4 @@ __pycache__/
 /tests/fixtures/last_live_search.html
 .superpowers/
 .worktrees/
+dist/

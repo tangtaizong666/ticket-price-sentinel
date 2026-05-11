@@ -124,9 +124,20 @@ def test_windows_portable_build_script_maps_launcher_to_package_root() -> None:
 
     assert re.search(
         r'Copy-RequiredItem\s+-Source\s+\(Join-Path\s+\$repoRoot\s+"scripts[/\\]launch_portable\.bat"\)\s+'
-        r'-Destination\s+\(Join-Path\s+\$packageRoot\s+"启动机票监控\.bat"\)',
+        r'-Destination\s+\(Join-Path\s+\$packageRoot\s+\$portableLauncherName\)',
         content,
     )
+    assert "0x542f" in content
+    assert "0x52a8" in content
+
+
+def test_windows_portable_build_script_avoids_non_ascii_release_filenames() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    assert '"启动机票监控.bat"' not in content
+    assert '"README_使用说明.txt"' not in content
+    assert "$portableLauncherName" in content
+    assert "$releaseReadmeName" in content
 
 
 def test_windows_portable_build_script_does_not_copy_local_state_to_package() -> None:
@@ -173,7 +184,12 @@ def test_windows_portable_build_script_removes_nested_python_cache_files() -> No
         re.IGNORECASE,
     )
     assert re.search(
-        r'Get-ChildItem\s+-LiteralPath\s+\$packageRoot\s+-Recurse\s+-File\s+-Include\s+"\*\.pyc",\s+"\*\.pyo"',
+        r'\$_.Extension\s+-in\s+@\(.*"\.pyc".*"\.pyo".*\)',
+        content,
+        re.IGNORECASE,
+    )
+    assert not re.search(
+        r'Get-ChildItem\s+-LiteralPath\s+\$packageRoot\s+-Recurse\s+-File\s+-Include',
         content,
         re.IGNORECASE,
     )
