@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fly Ticket</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+</head>
+<body>
+    <main class="app-shell">
+        <header class="page-header">
+            <div>
+                <p class="eyebrow">Flight search workspace</p>
+                <h1>Fly Ticket</h1>
+                <p class="page-copy">Compare routes, stage filters, and revisit prior searches from one place.</p>
+            </div>
+            <div class="header-status" id="search-summary" aria-live="polite">
+                Ready to search. No filters selected.
+            </div>
+        </header>
+
+        <section id="first-use-guide" class="panel guide-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="panel-kicker">开始使用</p>
+                    <h2>{{ dashboard.guide_title }}</h2>
+                </div>
+                <button type="button" class="secondary-action" data-dashboard-action="search">去搜索</button>
+            </div>
+            <ol class="guide-steps">
+                {% for step in dashboard.guide_steps %}
+                    <li>{{ step }}</li>
+                {% endfor %}
+            </ol>
+        </section>
+
+        <section class="dashboard-status-grid" aria-label="Dashboard status">
+            <article id="login-status-card" class="panel status-card">
+                <p class="panel-kicker">{{ dashboard.login_card.title }}</p>
+                <h3>{{ dashboard.login_card.status }}</h3>
+                <p>{{ dashboard.login_card.detail }}</p>
+                <button type="button" class="primary-action" data-dashboard-action="{{ dashboard.login_card.action_kind }}">{{ dashboard.login_card.action_label }}</button>
+            </article>
+
+            <article id="monitor-status-card" class="panel status-card">
+                <p class="panel-kicker">{{ dashboard.monitor_card.title }}</p>
+                <h3>{{ dashboard.monitor_card.status }}</h3>
+                <p>{{ dashboard.monitor_card.detail }}</p>
+                <button type="button" class="primary-action" data-dashboard-action="{{ dashboard.monitor_card.action_kind }}">{{ dashboard.monitor_card.action_label }}</button>
+            </article>
+
+            <article
+                id="latest-hit-card"
+                class="panel status-card"
+                data-monitor-task-id="{{ dashboard.latest_hit_card.monitor_task_id or '' }}"
+                data-monitor-hit-id="{{ dashboard.latest_hit_card.monitor_hit_id or '' }}"
+            >
+                <p class="panel-kicker">{{ dashboard.latest_hit_card.title }}</p>
+                <h3>{{ dashboard.latest_hit_card.status }}</h3>
+                <p>{{ dashboard.latest_hit_card.detail }}</p>
+                <button
+                    type="button"
+                    class="primary-action"
+                    data-dashboard-action="{{ dashboard.latest_hit_card.action_kind }}"
+                    data-monitor-task-id="{{ dashboard.latest_hit_card.monitor_task_id or '' }}"
+                    data-monitor-hit-id="{{ dashboard.latest_hit_card.monitor_hit_id or '' }}"
+                >{{ dashboard.latest_hit_card.action_label }}</button>
+            </article>
+        </section>
+
+        <div class="layout-grid">
+            <section class="panel search-panel" aria-labelledby="search-heading">
+                <div class="panel-heading">
+                    <div>
+                        <p class="panel-kicker">Inputs</p>
+                        <h2 id="search-heading">Search</h2>
+                    </div>
+                </div>
+
+                <form id="search-form" method="get" class="search-form">
+                    <label>
+                        <span>Origin city</span>
+                        <input type="text" name="origin_city" placeholder="Origin city">
+                    </label>
+                    <label>
+                        <span>Destination city</span>
+                        <input type="text" name="destination_city" placeholder="Destination city">
+                    </label>
+                    <label>
+                        <span>Departure date</span>
+                        <input type="date" name="departure_date" placeholder="Departure date">
+                    </label>
+                    <label>
+                        <span>Max price</span>
+                        <input type="number" name="max_price" placeholder="Max price" min="0" step="1">
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit" class="primary-action">Search</button>
+                        <button type="button" class="secondary-action">Save draft</button>
+                    </div>
+                </form>
+
+                <section class="filters-shell" aria-labelledby="filters-heading">
+                    <div class="panel-heading compact">
+                        <div>
+                            <p class="panel-kicker">Refine</p>
+                            <h2 id="filters-heading">Filters</h2>
+                        </div>
+                        <button type="button" id="clear-filters" class="text-action">Clear all</button>
+                    </div>
+
+                    <div class="filter-group-card">
+                        <button type="button" class="filter-toggle" data-filter-toggle="departure_time_filters" aria-expanded="true">
+                            <span>Departure time</span>
+                            <span class="filter-toggle-hint">Morning, afternoon, evening</span>
+                        </button>
+                        <div class="filter-options" data-filter-group="departure_time_filters">
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Early morning">Early morning</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Morning">Morning</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Afternoon">Afternoon</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Evening">Evening</button>
+                        </div>
+                    </div>
+
+                    <div class="filter-group-card">
+                        <button type="button" class="filter-toggle" data-filter-toggle="flight_attribute_filters" aria-expanded="false">
+                            <span>Flight attributes</span>
+                            <span class="filter-toggle-hint">Stops, baggage, cabin</span>
+                        </button>
+                        <div class="filter-options is-collapsed" data-filter-group="flight_attribute_filters" hidden>
+                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="Nonstop">Nonstop</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="1 stop max">1 stop max</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="Checked bag">Checked bag</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="Refundable">Refundable</button>
+                        </div>
+                    </div>
+
+                    <div class="filter-group-card">
+                        <button type="button" class="filter-toggle" data-filter-toggle="airline_filters" aria-expanded="false">
+                            <span>Airlines</span>
+                            <span class="filter-toggle-hint">Popular carriers</span>
+                        </button>
+                        <div class="filter-options is-collapsed" data-filter-group="airline_filters" hidden>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="Air China">Air China</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="China Eastern">China Eastern</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="China Southern">China Southern</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="Hainan Airlines">Hainan Airlines</button>
+                        </div>
+                    </div>
+
+                    <div class="selected-filter-shell">
+                        <div class="panel-heading compact">
+                            <div>
+                                <p class="panel-kicker">Selected</p>
+                                <h3>Filter tags</h3>
+                            </div>
+                        </div>
+                        <div id="selected-tags" class="selected-tags" aria-live="polite">
+                            <span class="empty-state-tag">No filters selected.</span>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <section class="panel results-panel" aria-labelledby="results-heading">
+                <div class="panel-heading">
+                    <div>
+                        <p class="panel-kicker">Output</p>
+                        <h2 id="results-heading">Results</h2>
+                    </div>
+                </div>
+                <div id="results-list" class="result-list">
+                    <article class="result-card placeholder-card">
+                        <div>
+                            <h3>Search results will appear here</h3>
+                            <p>Submit a search to load matching flights and pricing.</p>
+                        </div>
+                        <span class="result-price">--</span>
+                    </article>
+                </div>
+            </section>
+
+            <section class="panel monitor-panel" aria-labelledby="monitor-heading">
+                <div class="panel-heading">
+                    <div>
+                        <p class="panel-kicker">Monitoring</p>
+                        <h2 id="monitor-heading">Price monitors</h2>
+                    </div>
+                </div>
+                <div class="monitor-grid">
+                    <form id="monitor-form" class="search-form monitor-form">
+                        <label>
+                            <span>Origin city</span>
+                            <input type="text" name="origin_city" placeholder="Origin city">
+                        </label>
+                        <label>
+                            <span>Destination city</span>
+                            <input type="text" name="destination_city" placeholder="Destination city">
+                        </label>
+                        <label>
+                            <span>Departure date</span>
+                            <input type="date" name="departure_date" placeholder="Departure date">
+                        </label>
+                        <label>
+                            <span>Target price</span>
+                            <input type="number" name="target_price" placeholder="Target price" min="0" step="1">
+                        </label>
+                        <label>
+                            <span>Check interval (minutes)</span>
+                            <input type="number" name="check_interval_minutes" value="30" min="1" step="1">
+                        </label>
+                        <div class="form-actions">
+                            <button type="submit" class="primary-action">Save monitor</button>
+                            <button type="button" class="secondary-action" id="monitor-form-reset">Clear monitor draft</button>
+                        </div>
+                    </form>
+
+                    <section class="monitor-list-shell" aria-labelledby="monitor-list-heading">
+                        <div class="panel-heading compact">
+                            <div>
+                                <p class="panel-kicker">Saved tasks</p>
+                                <h3 id="monitor-list-heading">Monitor list</h3>
+                            </div>
+                        </div>
+                        <div id="monitor-list" class="monitor-list">
+                            {% if monitors %}
+                                {% for item in monitors %}
+                                    <article class="monitor-row" data-monitor-id="{{ item.id }}" data-monitor-enabled="{{ 'true' if item.enabled else 'false' }}">
+                                        <div>
+                                            <h3>{{ item.origin_city }} to {{ item.destination_city }}</h3>
+                                            <p>{{ item.departure_date }} · target ¥{{ item.target_price }} · every {{ item.check_interval_minutes }} min</p>
+                                        </div>
+                                        <div class="history-actions monitor-actions">
+                                            <button type="button" data-monitor-action="edit" data-monitor-id="{{ item.id }}">Edit</button>
+                                            <button type="button" data-monitor-action="toggle" data-monitor-id="{{ item.id }}">{{ 'Pause' if item.enabled else 'Resume' }}</button>
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            {% else %}
+                                <article class="monitor-row empty-history">
+                                    <div>
+                                        <h3>No monitors saved yet</h3>
+                                        <p>Saved monitor tasks will appear here with quick edit and toggle actions.</p>
+                                    </div>
+                                </article>
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    <section id="monitor-detail" class="selected-filter-shell monitor-detail" aria-live="polite">
+                        <div class="panel-heading compact">
+                            <div>
+                                <p class="panel-kicker">Selection</p>
+                                <h3>Monitor detail</h3>
+                            </div>
+                        </div>
+                        <div class="monitor-detail-copy">
+                            <p>Select a saved monitor to load it into the form and preview its saved state.</p>
+                            <div class="monitor-detail-actions">
+                                <button type="button" class="text-action" data-monitor-action="edit" data-monitor-id="">Edit</button>
+                                <button type="button" class="text-action" data-monitor-action="toggle" data-monitor-id="">Pause</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <section class="panel history-panel" aria-labelledby="history-heading">
+                <div class="panel-heading">
+                    <div>
+                        <p class="panel-kicker">Recent activity</p>
+                        <h2 id="history-heading">History</h2>
+                    </div>
+                </div>
+                <div id="history-list" class="history-list">
+                    {% if history %}
+                        {% for item in history %}
+                            <article class="history-row" data-history-id="{{ item.id }}">
+                                <div>
+                                    <h3>{{ item.origin_city }} to {{ item.destination_city }}</h3>
+                                    <p>{{ item.departure_date }} · max ¥{{ item.max_price }}</p>
+                                </div>
+                                <div class="history-actions">
+                                    <button type="button" data-history-action="rerun" data-history-id="{{ item.id }}">Rerun</button>
+                                    <button type="button" data-history-action="edit" data-history-id="{{ item.id }}">Edit</button>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <article class="history-row empty-history">
+                            <div>
+                                <h3>No searches saved yet</h3>
+                                <p>Recent searches will appear here with quick rerun and edit actions.</p>
+                            </div>
+                        </article>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', path='app.js') }}"></script>
+</body>
+</html>

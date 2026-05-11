@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+/data/playwright-profile/
+/data/*.html
+/tests/fixtures/last_live_search.html
+.superpowers/
