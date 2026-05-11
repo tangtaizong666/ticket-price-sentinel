@@ -62,18 +62,18 @@ class CtripScraper:
         context = await self.session_manager.get_context()
         page = await context.new_page()
         try:
-            await page.goto(
-                search_url,
-                wait_until="domcontentloaded",
-                timeout=_NAVIGATION_TIMEOUT_MS,
-            )
-            await page.wait_for_load_state(
-                "networkidle",
-                timeout=_NETWORK_IDLE_TIMEOUT_MS,
-            )
-        except TimeoutError as exc:
-            raise ScrapeFailedError(f"Ctrip search navigation timed out: {exc}") from exc
-        try:
+            try:
+                await page.goto(
+                    search_url,
+                    wait_until="domcontentloaded",
+                    timeout=_NAVIGATION_TIMEOUT_MS,
+                )
+                await page.wait_for_load_state(
+                    "networkidle",
+                    timeout=_NETWORK_IDLE_TIMEOUT_MS,
+                )
+            except TimeoutError as exc:
+                raise ScrapeFailedError(f"Ctrip search navigation timed out: {exc}") from exc
             return await page.content()
         finally:
             await page.close()

@@ -10,9 +10,15 @@ from app.settings import Settings
 
 
 class FakePage:
-    def __init__(self, html: str = "<html></html>", goto_error: Exception | None = None):
+    def __init__(
+        self,
+        html: str = "<html></html>",
+        goto_error: Exception | None = None,
+        wait_error: Exception | None = None,
+    ):
         self.html = html
         self.goto_error = goto_error
+        self.wait_error = wait_error
         self.goto_calls: list[tuple[str, str, int]] = []
         self.wait_calls: list[tuple[str, int]] = []
         self.closed = False
@@ -24,6 +30,8 @@ class FakePage:
 
     async def wait_for_load_state(self, state: str, timeout: int | None = None) -> None:
         self.wait_calls.append((state, timeout))
+        if self.wait_error is not None:
+            raise self.wait_error
 
     async def content(self) -> str:
         return self.html
@@ -216,6 +224,30 @@ class SessionManagerContextReuseTests(unittest.IsolatedAsyncioTestCase):
             result = await scraper.search(request)
 
         self.assertEqual(result, flights)
+        self.assertEqual(existing_relogin_page.goto_calls, [])
+        self.assertEqual(len(search_page.goto_calls), 1)
+        self.assertTrue(search_page.closed)
+
+    async def test_shared_context_search_closes_isolated_page_when_navigation_fails(self) -> None:
+        request = SearchRequest(
+            origin_city="北京",
+            destination_city="上海",
+            departure_date=date(2026, 5, 20),
+        )
+        settings = Settings(
+            ctrip_search_url_template="https://example.com/search?from={origin}&to={destination}&date={departure_date}",
+        )
+        existing_relogin_page = FakePage()
+        search_page = FakePage(wait_error=TimeoutError("network idle timed out"))
+        shared_context = NewPageContext(existing_relogin_page, search_page)
+        manager = CtripSessionManager(settings)
+        manager._context = shared_context
+        scraper = CtripScraper(settings, session_manager=manager)
+
+        with self.assertRaises(ScrapeFailedError) as exc_info:
+            await scraper.search(request)
+
+        self.assertIn("network idle timed out", str(exc_info.exception))
         self.assertEqual(existing_relogin_page.goto_calls, [])
         self.assertEqual(len(search_page.goto_calls), 1)
         self.assertTrue(search_page.closed)
