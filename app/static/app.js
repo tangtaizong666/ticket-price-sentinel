@@ -31,6 +31,27 @@ function focusAndScroll(selector) {
     }
 }
 
+function playMonitorHitTone() {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) {
+        return;
+    }
+
+    const audioContext = new AudioContextConstructor();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.03;
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.18);
+    oscillator.addEventListener("ended", () => {
+        audioContext.close();
+    });
+}
+
 function getActiveFilterCount() {
     return Object.values(activeFilters).reduce((total, valueSet) => total + valueSet.size, 0);
 }
@@ -435,9 +456,11 @@ function focusMonitorHit(monitorHitId) {
     });
 
     hitCard.dataset.monitorHitFocused = "true";
+    hitCard.setAttribute("data-monitor-hit-tone", "played");
     hitCard.classList.add("is-highlighted");
     hitCard.scrollIntoView({ behavior: "smooth", block: "center" });
     hitCard.focus({ preventScroll: true });
+    playMonitorHitTone();
 }
 
 function renderMonitorDetail(task, hits, highlightedHitId = null) {

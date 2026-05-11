@@ -165,6 +165,15 @@ def test_monitor_detail_js_consumes_monitor_hit_id_for_deep_link_focus() -> None
     assert 'scrollIntoView({ behavior: "smooth", block: "center" })' in script
 
 
+def test_monitor_detail_js_exposes_sound_feedback_for_focused_hit() -> None:
+    script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
+
+    assert "function playMonitorHitTone()" in script
+    assert "AudioContext" in script
+    assert "data-monitor-hit-tone" in script
+    assert "playMonitorHitTone();" in script
+
+
 def test_view_hit_dashboard_action_preserves_hit_specific_focus_behavior() -> None:
     script = (PROJECT_ROOT / "app/static/app.js").read_text(encoding="utf-8")
 
