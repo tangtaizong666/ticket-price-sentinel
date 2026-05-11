@@ -32,7 +32,7 @@ if not exist ".env" (
 
 set "PORT="
 for /L %%P in (8000,1,8020) do (
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort %%P -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }"
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-NetTCPConnection -LocalPort %%P -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }"
   if not errorlevel 1 (
     set "PORT=%%P"
     goto port_found

@@ -61,6 +61,14 @@ def test_portable_launcher_sets_browser_path_and_finds_port() -> None:
     )
 
 
+def test_portable_launcher_port_probe_does_not_ignore_wildcard_listeners() -> None:
+    content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
+
+    assert "Get-NetTCPConnection" in content
+    assert "-LocalPort %%P" in content
+    assert "-LocalAddress 127.0.0.1" not in content
+
+
 def test_portable_launcher_routes_error_branches_to_pausing_error_label() -> None:
     content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
     lower_content = content.lower()
