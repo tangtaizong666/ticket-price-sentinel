@@ -50,8 +50,8 @@ def test_home_page_renders_first_use_dashboard() -> None:
     assert response.headers["content-type"].startswith("text/html")
 
     html = response.text
-    assert "<title>Fly Ticket</title>" in html
-    assert "<h1>Fly Ticket</h1>" in html
+    assert "<title>飞票监控</title>" in html
+    assert "<h1>飞票监控</h1>" in html
     assert 'id="first-use-guide"' in html
     assert 'id="login-status-card"' in html
     assert 'id="monitor-status-card"' in html
@@ -82,6 +82,23 @@ def test_home_page_renders_first_use_dashboard() -> None:
     assert 'id="monitor-detail"' in html
     assert 'data-monitor-action="edit"' in html
     assert 'data-monitor-action="toggle"' in html
+
+
+def test_home_page_uses_chinese_dashboard_copy_and_status_cards() -> None:
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    html = response.text
+    for expected in ["飞票监控", "登录状态", "监控状态", "最近命中", "快速搜索", "创建监控任务"]:
+        assert expected in html
+
+    assert "Flight search workspace" not in html
+    assert "<h2>Search</h2>" not in html
+    assert "<h2>Results</h2>" not in html
+    assert "<h2>History</h2>" not in html
 
 
 def test_home_page_renders_view_hit_dashboard_action_when_latest_hit_exists(tmp_path) -> None:

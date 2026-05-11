@@ -65,8 +65,8 @@ function createSelectedTag(groupName, value) {
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
-    removeButton.textContent = "Remove";
-    removeButton.setAttribute("aria-label", `Remove ${value} filter`);
+    removeButton.textContent = "移除";
+    removeButton.setAttribute("aria-label", `移除 ${value} 筛选条件`);
     removeButton.addEventListener("click", () => toggleFilterValue(groupName, value));
 
     tag.append(label, removeButton);
@@ -93,14 +93,14 @@ function renderSelectedTags() {
     if (count === 0) {
         const emptyState = document.createElement("span");
         emptyState.className = "empty-state-tag";
-        emptyState.textContent = "No filters selected.";
+        emptyState.textContent = "暂未选择筛选条件。";
         selectedTagsElement.appendChild(emptyState);
-        searchSummaryElement.textContent = "Ready to search. No filters selected.";
+        searchSummaryElement.textContent = "可以开始搜索，当前没有选择筛选条件。";
         return;
     }
 
     selectedTagsElement.appendChild(fragment);
-    searchSummaryElement.textContent = `Ready to search. ${count} filter${count === 1 ? "" : "s"} selected.`;
+    searchSummaryElement.textContent = `可以开始搜索，已选择 ${count} 个筛选条件。`;
 }
 
 function syncChipState(groupName, value) {
@@ -227,13 +227,13 @@ function renderResults(response) {
     if (!response || !Array.isArray(response.flights) || response.flights.length === 0) {
         resultsListElement.appendChild(
             createPlaceholderResultCard(
-                "No matching flights found",
-                "Try adjusting the route, date, or selected filters.",
+                "没有找到符合条件的机票",
+                "可以调整航线、日期或筛选条件后再试一次。",
                 response && response.lowest_price ? `¥${response.lowest_price}` : "--",
                 "placeholder-card"
             )
         );
-        searchSummaryElement.textContent = "Search complete. No matching flights found.";
+        searchSummaryElement.textContent = "搜索完成，但没有找到符合条件的机票。";
         return;
     }
 
@@ -262,7 +262,7 @@ function renderResults(response) {
     const lowestPriceText = response.lowest_price === null || response.lowest_price === undefined
         ? "--"
         : `¥${response.lowest_price}`;
-    searchSummaryElement.textContent = `Found ${response.flights.length} flight${response.flights.length === 1 ? "" : "s"}. Lowest price ${lowestPriceText}.${filterCount > 0 ? ` ${filterCount} filter${filterCount === 1 ? "" : "s"} applied.` : ""}`.trim();
+    searchSummaryElement.textContent = `找到 ${response.flights.length} 个航班，最低价 ${lowestPriceText}${filterCount > 0 ? `，已应用 ${filterCount} 个筛选条件` : ""}。`;
 }
 
 function createHistoryRow(record) {
@@ -272,8 +272,8 @@ function createHistoryRow(record) {
 
     const content = document.createElement("div");
     const heading = document.createElement("h3");
-    heading.textContent = `${record.origin_city} to ${record.destination_city}`;
-    const maxPriceText = record.max_price === null || record.max_price === undefined ? "Any price" : `max ¥${record.max_price}`;
+    heading.textContent = `${record.origin_city} → ${record.destination_city}`;
+    const maxPriceText = record.max_price === null || record.max_price === undefined ? "不限价格" : `最高 ¥${record.max_price}`;
     const body = document.createElement("p");
     body.textContent = `${record.departure_date} · ${maxPriceText}`;
     content.append(heading, body);
@@ -286,7 +286,7 @@ function createHistoryRow(record) {
         button.type = "button";
         button.dataset.historyAction = action;
         button.dataset.historyId = String(record.id);
-        button.textContent = action === "rerun" ? "Rerun" : "Edit";
+        button.textContent = action === "rerun" ? "重新搜索" : "编辑";
         actions.appendChild(button);
     });
 
@@ -354,9 +354,9 @@ function setMonitorDetail(record) {
         const headingContent = document.createElement("div");
         const kicker = document.createElement("p");
         kicker.className = "panel-kicker";
-        kicker.textContent = "Selection";
+        kicker.textContent = "当前选择";
         const heading = document.createElement("h3");
-        heading.textContent = "Monitor detail";
+        heading.textContent = "监控详情";
         headingContent.append(kicker, heading);
         headingWrapper.appendChild(headingContent);
 
@@ -364,7 +364,7 @@ function setMonitorDetail(record) {
         detailCopy.className = "monitor-detail-copy";
 
         const descriptionElement = document.createElement("p");
-        descriptionElement.textContent = "Select a saved monitor to load it into the form and preview its saved state.";
+        descriptionElement.textContent = "选择一个监控任务，可查看最近检查和命中记录。";
         detailCopy.appendChild(descriptionElement);
 
         monitorDetailElement.replaceChildren(headingWrapper, detailCopy);
@@ -395,7 +395,7 @@ function createMonitorFlightButton(flight) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "text-action";
-    button.textContent = `${flight.airline || "Unknown airline"} ${flight.flight_no || ""} · ¥${flight.price ?? "--"}`.trim();
+    button.textContent = `${flight.airline || "未知航司"} ${flight.flight_no || ""} · ¥${flight.price ?? "--"}`.trim();
 
     const targetUrl = buildFlightLinkUrl(flight);
     if (!targetUrl) {
@@ -417,9 +417,9 @@ function createMonitorHitCard(hit) {
 
     const content = document.createElement("div");
     const heading = document.createElement("h4");
-    heading.textContent = `Hit ¥${hit.lowest_price}`;
+    heading.textContent = `命中 ¥${hit.lowest_price}`;
     const body = document.createElement("p");
-    body.textContent = `Triggered ${formatMonitorHitTime(hit.hit_at)}`;
+    body.textContent = `命中时间：${formatMonitorHitTime(hit.hit_at)}`;
     content.append(heading, body);
 
     const flightsContainer = document.createElement("div");
@@ -428,7 +428,7 @@ function createMonitorHitCard(hit) {
     const flights = Array.isArray(hit.search_snapshot_json) ? hit.search_snapshot_json : [];
     if (flights.length === 0) {
         const emptyState = document.createElement("p");
-        emptyState.textContent = "No saved flight snapshot for this hit.";
+        emptyState.textContent = "这次命中没有保存航班快照。";
         flightsContainer.appendChild(emptyState);
     } else {
         flights.forEach((flight) => {
@@ -468,9 +468,9 @@ function renderMonitorDetail(task, hits, highlightedHitId = null) {
         return;
     }
 
-    const title = `${task.origin_city} to ${task.destination_city}`;
-    const description = `${task.departure_date} · target ¥${task.target_price} · every ${task.check_interval_minutes} min · ${task.enabled ? "Enabled" : "Paused"}`;
-    const toggleLabel = task.enabled ? "Pause" : "Resume";
+    const title = `${task.origin_city} → ${task.destination_city}`;
+    const description = `${task.departure_date} · 目标 ¥${task.target_price} · 每 ${task.check_interval_minutes} 分钟检查 · ${task.enabled ? "运行中" : "已暂停"}`;
+    const toggleLabel = task.enabled ? "暂停" : "恢复";
     const monitorId = String(task.id || "");
 
     const headingWrapper = document.createElement("div");
@@ -479,7 +479,7 @@ function renderMonitorDetail(task, hits, highlightedHitId = null) {
     const headingContent = document.createElement("div");
     const kicker = document.createElement("p");
     kicker.className = "panel-kicker";
-    kicker.textContent = "Selection";
+    kicker.textContent = "当前选择";
     const heading = document.createElement("h3");
     heading.textContent = title;
     headingContent.append(kicker, heading);
@@ -499,7 +499,7 @@ function renderMonitorDetail(task, hits, highlightedHitId = null) {
     editButton.className = "text-action";
     editButton.dataset.monitorAction = "edit";
     editButton.dataset.monitorId = monitorId;
-    editButton.textContent = "Edit";
+    editButton.textContent = "编辑";
 
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
@@ -512,14 +512,14 @@ function renderMonitorDetail(task, hits, highlightedHitId = null) {
     detailCopy.append(descriptionElement, actions);
 
     const hitsHeading = document.createElement("h4");
-    hitsHeading.textContent = "Recorded hits";
+    hitsHeading.textContent = "命中记录";
 
     const hitList = document.createElement("div");
     hitList.id = "monitor-hit-list";
 
     if (!Array.isArray(hits) || hits.length === 0) {
         const emptyState = document.createElement("p");
-        emptyState.textContent = "No hits recorded for this monitor yet.";
+        emptyState.textContent = "这个监控还没有命中记录。";
         hitList.appendChild(emptyState);
     } else {
         hits.forEach((hit) => {
@@ -549,7 +549,7 @@ async function loadMonitorDetail(monitorId, monitorHitId = null) {
         focusMonitorHit(monitorHitId);
     } catch (error) {
         setMonitorDetail(null);
-        searchSummaryElement.textContent = `Monitor detail failed to load. ${error.message}`;
+        searchSummaryElement.textContent = `监控详情加载失败。${error.message}`;
     }
 }
 
@@ -561,17 +561,17 @@ function createMonitorRow(record) {
 
     const content = document.createElement("div");
     const heading = document.createElement("h3");
-    heading.textContent = `${record.origin_city} to ${record.destination_city}`;
+    heading.textContent = `${record.origin_city} → ${record.destination_city}`;
     const body = document.createElement("p");
-    body.textContent = `${record.departure_date} · target ¥${record.target_price} · every ${record.check_interval_minutes} min`;
+    body.textContent = `${record.departure_date} · 目标 ¥${record.target_price} · 每 ${record.check_interval_minutes} 分钟检查`;
     content.append(heading, body);
 
     const actions = document.createElement("div");
     actions.className = "history-actions monitor-actions";
 
     [
-        { action: "edit", label: "Edit" },
-        { action: "toggle", label: record.enabled ? "Pause" : "Resume" },
+        { action: "edit", label: "编辑" },
+        { action: "toggle", label: record.enabled ? "暂停" : "恢复" },
     ].forEach(({ action, label }) => {
         const button = document.createElement("button");
         button.type = "button";
@@ -598,9 +598,9 @@ function renderMonitorList(monitors) {
 
         const content = document.createElement("div");
         const heading = document.createElement("h3");
-        heading.textContent = "No monitors saved yet";
+        heading.textContent = "还没有监控任务";
         const body = document.createElement("p");
-        body.textContent = "Saved monitor tasks will appear here with quick edit and toggle actions.";
+        body.textContent = "保存一个目标价，程序会在后台定时检查。";
         content.append(heading, body);
         article.appendChild(content);
 
@@ -692,7 +692,7 @@ async function requestJson(url, options = {}) {
 
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-        const message = payload && (payload.message || payload.detail) ? payload.message || payload.detail : "Request failed";
+        const message = payload && (payload.message || payload.detail) ? payload.message || payload.detail : "请求失败";
         throw new Error(message);
     }
 
@@ -707,7 +707,7 @@ async function runSearch(event) {
         return;
     }
 
-    searchSummaryElement.textContent = "Searching flights...";
+    searchSummaryElement.textContent = "正在搜索机票...";
 
     try {
         const response = await requestJson("/api/search", {
@@ -720,9 +720,9 @@ async function runSearch(event) {
         }
     } catch (error) {
         resultsListElement.replaceChildren(
-            createPlaceholderResultCard("Search failed", error.message, "--", "placeholder-card")
+            createPlaceholderResultCard("搜索失败", error.message, "--", "placeholder-card")
         );
-        searchSummaryElement.textContent = `Search failed. ${error.message}`;
+        searchSummaryElement.textContent = `搜索失败。${error.message}`;
     }
 }
 
@@ -741,19 +741,19 @@ async function handleHistoryAction(event) {
         if (historyAction === "edit") {
             const record = await requestJson(`/api/history/${historyId}`);
             fillSearchForm(record);
-            searchSummaryElement.textContent = `Loaded history item ${historyId} into the search form.`;
+            searchSummaryElement.textContent = `已把历史记录 ${historyId} 填入搜索表单。`;
             return;
         }
 
         if (historyAction === "rerun") {
-            searchSummaryElement.textContent = `Rerunning history item ${historyId}...`;
+            searchSummaryElement.textContent = `正在重新搜索历史记录 ${historyId}...`;
             const response = await requestJson(`/api/history/${historyId}/rerun`, { method: "POST" });
             renderResults(response);
             const record = await requestJson(`/api/history/${response.history_id}`);
             upsertHistoryRecord(record);
         }
     } catch (error) {
-        searchSummaryElement.textContent = `${historyAction === "edit" ? "Edit" : "Rerun"} failed. ${error.message}`;
+        searchSummaryElement.textContent = `${historyAction === "edit" ? "编辑" : "重新搜索"}失败。${error.message}`;
     }
 }
 
@@ -776,9 +776,9 @@ async function handleMonitorSubmit(event) {
         });
         updateMonitorListRecord(record);
         fillMonitorForm(record);
-        searchSummaryElement.textContent = `Monitor ${existingId ? "updated" : "saved"} for ${record.origin_city} to ${record.destination_city}.`;
+        searchSummaryElement.textContent = `已${existingId ? "更新" : "保存"} ${record.origin_city} → ${record.destination_city} 的监控任务。`;
     } catch (error) {
-        searchSummaryElement.textContent = `Monitor save failed. ${error.message}`;
+        searchSummaryElement.textContent = `监控保存失败。${error.message}`;
     }
 }
 
@@ -791,7 +791,7 @@ async function handleMonitorAction(event) {
     const { monitorAction, monitorId } = button.dataset;
     if (!monitorAction || !monitorId) {
         if (monitorAction === "edit" && !monitorId) {
-            searchSummaryElement.textContent = "Select a saved monitor before editing it.";
+            searchSummaryElement.textContent = "请先选择一个已保存的监控任务。";
         }
         return;
     }
@@ -802,7 +802,7 @@ async function handleMonitorAction(event) {
         if (monitorAction === "edit") {
             fillMonitorForm(record);
             await loadMonitorDetail(monitorId);
-            searchSummaryElement.textContent = `Loaded monitor ${monitorId} into the monitor form.`;
+            searchSummaryElement.textContent = `已把监控任务 ${monitorId} 填入表单。`;
             return;
         }
 
@@ -822,10 +822,10 @@ async function handleMonitorAction(event) {
                 }),
             });
             updateMonitorListRecord(updatedRecord);
-            searchSummaryElement.textContent = `Monitor ${monitorId} ${updatedRecord.enabled ? "resumed" : "paused"}.`;
+            searchSummaryElement.textContent = `监控任务 ${monitorId} 已${updatedRecord.enabled ? "恢复" : "暂停"}。`;
         }
     } catch (error) {
-        searchSummaryElement.textContent = `Monitor action failed. ${error.message}`;
+        searchSummaryElement.textContent = `监控操作失败。${error.message}`;
     }
 }
 
@@ -905,7 +905,7 @@ if (monitorFormResetButton) {
     monitorFormResetButton.addEventListener("click", () => {
         resetMonitorForm();
         setMonitorDetail(null);
-        searchSummaryElement.textContent = "Cleared the monitor draft form.";
+        searchSummaryElement.textContent = "已清空监控草稿。";
     });
 }
 

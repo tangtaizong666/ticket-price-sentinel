@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fly Ticket</title>
+    <title>飞票监控</title>
     <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
 </head>
 <body>
     <main class="app-shell">
         <header class="page-header">
             <div>
-                <p class="eyebrow">Flight search workspace</p>
-                <h1>Fly Ticket</h1>
-                <p class="page-copy">Compare routes, stage filters, and revisit prior searches from one place.</p>
+                <p class="eyebrow">本地机票监控工作台</p>
+                <h1>飞票监控</h1>
+                <p class="page-copy">搜索携程机票、保存目标价监控，并在价格命中时提醒你回来查看。</p>
             </div>
             <div class="header-status" id="search-summary" aria-live="polite">
-                Ready to search. No filters selected.
+                可以开始搜索，当前没有选择筛选条件。
             </div>
         </header>
 
@@ -34,7 +34,7 @@
             </ol>
         </section>
 
-        <section class="dashboard-status-grid" aria-label="Dashboard status">
+        <section class="dashboard-status-grid" aria-label="仪表盘状态">
             <article id="login-status-card" class="panel status-card">
                 <p class="panel-kicker">{{ dashboard.login_card.title }}</p>
                 <h3>{{ dashboard.login_card.status }}</h3>
@@ -72,91 +72,87 @@
             <section class="panel search-panel" aria-labelledby="search-heading">
                 <div class="panel-heading">
                     <div>
-                        <p class="panel-kicker">Inputs</p>
-                        <h2 id="search-heading">Search</h2>
+                        <p class="panel-kicker">快速搜索</p>
+                        <h2 id="search-heading">搜索</h2>
                     </div>
                 </div>
 
                 <form id="search-form" method="get" class="search-form">
                     <label>
-                        <span>Origin city</span>
-                        <input type="text" name="origin_city" placeholder="Origin city">
+                        <span>出发地</span>
+                        <input type="text" name="origin_city" placeholder="例如 bjs 或 北京">
                     </label>
                     <label>
-                        <span>Destination city</span>
-                        <input type="text" name="destination_city" placeholder="Destination city">
+                        <span>到达地</span>
+                        <input type="text" name="destination_city" placeholder="例如 sha 或 上海">
                     </label>
                     <label>
-                        <span>Departure date</span>
-                        <input type="date" name="departure_date" placeholder="Departure date">
+                        <span>出发日期</span>
+                        <input type="date" name="departure_date" placeholder="出发日期">
                     </label>
                     <label>
-                        <span>Max price</span>
-                        <input type="number" name="max_price" placeholder="Max price" min="0" step="1">
+                        <span>最高价</span>
+                        <input type="number" name="max_price" placeholder="可不填" min="0" step="1">
                     </label>
                     <div class="form-actions">
-                        <button type="submit" class="primary-action">Search</button>
-                        <button type="button" class="secondary-action">Save draft</button>
+                        <button type="submit" class="primary-action">开始搜索</button>
+                        <button type="button" class="secondary-action">保留当前条件</button>
                     </div>
                 </form>
 
                 <section class="filters-shell" aria-labelledby="filters-heading">
                     <div class="panel-heading compact">
                         <div>
-                            <p class="panel-kicker">Refine</p>
-                            <h2 id="filters-heading">Filters</h2>
+                            <p class="panel-kicker">高级筛选</p>
+                            <h2 id="filters-heading">筛选条件</h2>
                         </div>
-                        <button type="button" id="clear-filters" class="text-action">Clear all</button>
+                        <button type="button" id="clear-filters" class="text-action">清空筛选</button>
                     </div>
 
                     <div class="filter-group-card">
                         <button type="button" class="filter-toggle" data-filter-toggle="departure_time_filters" aria-expanded="true">
-                            <span>Departure time</span>
-                            <span class="filter-toggle-hint">Morning, afternoon, evening</span>
+                            <span>起飞时间</span>
+                            <span class="filter-toggle-hint">上午、下午、晚上</span>
                         </button>
                         <div class="filter-options" data-filter-group="departure_time_filters">
-                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Early morning">Early morning</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Morning">Morning</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Afternoon">Afternoon</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="Evening">Evening</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="上午">上午</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="下午">下午</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="departure_time_filters" data-filter-value="晚上">晚上</button>
                         </div>
                     </div>
 
                     <div class="filter-group-card">
                         <button type="button" class="filter-toggle" data-filter-toggle="flight_attribute_filters" aria-expanded="false">
-                            <span>Flight attributes</span>
-                            <span class="filter-toggle-hint">Stops, baggage, cabin</span>
+                            <span>航班偏好</span>
+                            <span class="filter-toggle-hint">直飞、经停等</span>
                         </button>
                         <div class="filter-options is-collapsed" data-filter-group="flight_attribute_filters" hidden>
-                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="Nonstop">Nonstop</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="1 stop max">1 stop max</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="Checked bag">Checked bag</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="Refundable">Refundable</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="flight_attribute_filters" data-filter-value="直飞">直飞</button>
                         </div>
                     </div>
 
                     <div class="filter-group-card">
                         <button type="button" class="filter-toggle" data-filter-toggle="airline_filters" aria-expanded="false">
-                            <span>Airlines</span>
-                            <span class="filter-toggle-hint">Popular carriers</span>
+                            <span>航空公司</span>
+                            <span class="filter-toggle-hint">常见航司</span>
                         </button>
                         <div class="filter-options is-collapsed" data-filter-group="airline_filters" hidden>
-                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="Air China">Air China</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="China Eastern">China Eastern</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="China Southern">China Southern</button>
-                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="Hainan Airlines">Hainan Airlines</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="国航">国航</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="东航">东航</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="南航">南航</button>
+                            <button type="button" class="filter-chip" data-filter-group-name="airline_filters" data-filter-value="海航">海航</button>
                         </div>
                     </div>
 
                     <div class="selected-filter-shell">
                         <div class="panel-heading compact">
                             <div>
-                                <p class="panel-kicker">Selected</p>
-                                <h3>Filter tags</h3>
+                                <p class="panel-kicker">已选择</p>
+                                <h3>筛选标签</h3>
                             </div>
                         </div>
                         <div id="selected-tags" class="selected-tags" aria-live="polite">
-                            <span class="empty-state-tag">No filters selected.</span>
+                            <span class="empty-state-tag">暂未选择筛选条件。</span>
                         </div>
                     </div>
                 </section>
@@ -165,15 +161,15 @@
             <section class="panel results-panel" aria-labelledby="results-heading">
                 <div class="panel-heading">
                     <div>
-                        <p class="panel-kicker">Output</p>
-                        <h2 id="results-heading">Results</h2>
+                        <p class="panel-kicker">搜索结果</p>
+                        <h2 id="results-heading">结果</h2>
                     </div>
                 </div>
                 <div id="results-list" class="result-list">
                     <article class="result-card placeholder-card">
                         <div>
-                            <h3>Search results will appear here</h3>
-                            <p>Submit a search to load matching flights and pricing.</p>
+                            <h3>搜索结果会显示在这里</h3>
+                            <p>输入航线和日期后开始搜索，系统会展示符合条件的机票。</p>
                         </div>
                         <span class="result-price">--</span>
                     </article>
@@ -183,43 +179,43 @@
             <section class="panel monitor-panel" aria-labelledby="monitor-heading">
                 <div class="panel-heading">
                     <div>
-                        <p class="panel-kicker">Monitoring</p>
-                        <h2 id="monitor-heading">Price monitors</h2>
+                        <p class="panel-kicker">创建监控任务</p>
+                        <h2 id="monitor-heading">监控任务</h2>
                     </div>
                 </div>
                 <div class="monitor-grid">
                     <form id="monitor-form" class="search-form monitor-form">
                         <label>
-                            <span>Origin city</span>
-                            <input type="text" name="origin_city" placeholder="Origin city">
+                            <span>出发地</span>
+                            <input type="text" name="origin_city" placeholder="例如 bjs 或 北京">
                         </label>
                         <label>
-                            <span>Destination city</span>
-                            <input type="text" name="destination_city" placeholder="Destination city">
+                            <span>到达地</span>
+                            <input type="text" name="destination_city" placeholder="例如 sha 或 上海">
                         </label>
                         <label>
-                            <span>Departure date</span>
-                            <input type="date" name="departure_date" placeholder="Departure date">
+                            <span>出发日期</span>
+                            <input type="date" name="departure_date" placeholder="出发日期">
                         </label>
                         <label>
-                            <span>Target price</span>
-                            <input type="number" name="target_price" placeholder="Target price" min="0" step="1">
+                            <span>目标价</span>
+                            <input type="number" name="target_price" placeholder="低于或等于该价格时提醒" min="0" step="1">
                         </label>
                         <label>
-                            <span>Check interval (minutes)</span>
+                            <span>检查间隔（分钟）</span>
                             <input type="number" name="check_interval_minutes" value="30" min="1" step="1">
                         </label>
                         <div class="form-actions">
-                            <button type="submit" class="primary-action">Save monitor</button>
-                            <button type="button" class="secondary-action" id="monitor-form-reset">Clear monitor draft</button>
+                            <button type="submit" class="primary-action">保存监控</button>
+                            <button type="button" class="secondary-action" id="monitor-form-reset">清空监控草稿</button>
                         </div>
                     </form>
 
                     <section class="monitor-list-shell" aria-labelledby="monitor-list-heading">
                         <div class="panel-heading compact">
                             <div>
-                                <p class="panel-kicker">Saved tasks</p>
-                                <h3 id="monitor-list-heading">Monitor list</h3>
+                                <p class="panel-kicker">已保存</p>
+                                <h3 id="monitor-list-heading">监控列表</h3>
                             </div>
                         </div>
                         <div id="monitor-list" class="monitor-list">
@@ -227,20 +223,20 @@
                                 {% for item in monitors %}
                                     <article class="monitor-row" data-monitor-id="{{ item.id }}" data-monitor-enabled="{{ 'true' if item.enabled else 'false' }}">
                                         <div>
-                                            <h3>{{ item.origin_city }} to {{ item.destination_city }}</h3>
-                                            <p>{{ item.departure_date }} · target ¥{{ item.target_price }} · every {{ item.check_interval_minutes }} min</p>
+                                            <h3>{{ item.origin_city }} → {{ item.destination_city }}</h3>
+                                            <p>{{ item.departure_date }} · 目标 ¥{{ item.target_price }} · 每 {{ item.check_interval_minutes }} 分钟检查</p>
                                         </div>
                                         <div class="history-actions monitor-actions">
-                                            <button type="button" data-monitor-action="edit" data-monitor-id="{{ item.id }}">Edit</button>
-                                            <button type="button" data-monitor-action="toggle" data-monitor-id="{{ item.id }}">{{ 'Pause' if item.enabled else 'Resume' }}</button>
+                                            <button type="button" data-monitor-action="edit" data-monitor-id="{{ item.id }}">编辑</button>
+                                            <button type="button" data-monitor-action="toggle" data-monitor-id="{{ item.id }}">{{ '暂停' if item.enabled else '恢复' }}</button>
                                         </div>
                                     </article>
                                 {% endfor %}
                             {% else %}
                                 <article class="monitor-row empty-history">
                                     <div>
-                                        <h3>No monitors saved yet</h3>
-                                        <p>Saved monitor tasks will appear here with quick edit and toggle actions.</p>
+                                        <h3>还没有监控任务</h3>
+                                        <p>保存一个目标价，程序会在后台定时检查。</p>
                                     </div>
                                 </article>
                             {% endif %}
@@ -250,15 +246,15 @@
                     <section id="monitor-detail" class="selected-filter-shell monitor-detail" aria-live="polite">
                         <div class="panel-heading compact">
                             <div>
-                                <p class="panel-kicker">Selection</p>
-                                <h3>Monitor detail</h3>
+                                <p class="panel-kicker">当前选择</p>
+                                <h3>监控详情</h3>
                             </div>
                         </div>
                         <div class="monitor-detail-copy">
-                            <p>Select a saved monitor to load it into the form and preview its saved state.</p>
+                            <p>选择一个监控任务，可查看最近检查和命中记录。</p>
                             <div class="monitor-detail-actions">
-                                <button type="button" class="text-action" data-monitor-action="edit" data-monitor-id="">Edit</button>
-                                <button type="button" class="text-action" data-monitor-action="toggle" data-monitor-id="">Pause</button>
+                                <button type="button" class="text-action" data-monitor-action="edit" data-monitor-id="">编辑</button>
+                                <button type="button" class="text-action" data-monitor-action="toggle" data-monitor-id="">暂停</button>
                             </div>
                         </div>
                     </section>
@@ -268,8 +264,8 @@
             <section class="panel history-panel" aria-labelledby="history-heading">
                 <div class="panel-heading">
                     <div>
-                        <p class="panel-kicker">Recent activity</p>
-                        <h2 id="history-heading">History</h2>
+                        <p class="panel-kicker">最近操作</p>
+                        <h2 id="history-heading">历史记录</h2>
                     </div>
                 </div>
                 <div id="history-list" class="history-list">
@@ -277,20 +273,20 @@
                         {% for item in history %}
                             <article class="history-row" data-history-id="{{ item.id }}">
                                 <div>
-                                    <h3>{{ item.origin_city }} to {{ item.destination_city }}</h3>
-                                    <p>{{ item.departure_date }} · max ¥{{ item.max_price }}</p>
+                                    <h3>{{ item.origin_city }} → {{ item.destination_city }}</h3>
+                                    <p>{{ item.departure_date }} · 最高价 ¥{{ item.max_price if item.max_price else '不限' }}</p>
                                 </div>
                                 <div class="history-actions">
-                                    <button type="button" data-history-action="rerun" data-history-id="{{ item.id }}">Rerun</button>
-                                    <button type="button" data-history-action="edit" data-history-id="{{ item.id }}">Edit</button>
+                                    <button type="button" data-history-action="rerun" data-history-id="{{ item.id }}">重新搜索</button>
+                                    <button type="button" data-history-action="edit" data-history-id="{{ item.id }}">编辑</button>
                                 </div>
                             </article>
                         {% endfor %}
                     {% else %}
                         <article class="history-row empty-history">
                             <div>
-                                <h3>No searches saved yet</h3>
-                                <p>Recent searches will appear here with quick rerun and edit actions.</p>
+                                <h3>还没有搜索记录</h3>
+                                <p>完成一次搜索后，历史记录会显示在这里。</p>
                             </div>
                         </article>
                     {% endif %}
