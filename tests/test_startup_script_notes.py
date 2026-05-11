@@ -54,5 +54,38 @@ def test_portable_launcher_sets_browser_path_and_finds_port() -> None:
     assert "PLAYWRIGHT_BROWSERS_PATH" in content
     assert "runtime\\ms-playwright" in content
     assert "Get-NetTCPConnection" in content
-    assert "APP_BASE_URL" in content
-    assert "pause" in content.lower()
+    assert 'set "APP_BASE_URL=http://127.0.0.1:%PORT%"' in content
+    assert 'start "" cmd /c "timeout /t 2 /nobreak >nul && start "" "%APP_BASE_URL%""' in content
+    assert content.index('set "APP_BASE_URL=http://127.0.0.1:%PORT%"') < content.index(
+        'start "" cmd /c "timeout /t 2 /nobreak >nul && start "" "%APP_BASE_URL%""'
+    )
+
+
+def test_portable_launcher_routes_error_branches_to_pausing_error_label() -> None:
+    content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
+    lower_content = content.lower()
+
+    assert "\n:error\n" in content
+    error_block = lower_content.split("\n:error\n", 1)[1]
+    assert "pause" in error_block
+    assert "exit /b 1" in error_block
+
+    missing_python_index = content.index('if not exist "%PYTHON_EXE%" (')
+    missing_browser_index = content.index('if not exist "%PLAYWRIGHT_BROWSERS_PATH%" (')
+    missing_env_example_index = content.index('if not exist ".env.example" (')
+    env_copy_failure_index = content.index('copy ".env.example" ".env" >nul')
+    no_port_index = content.index("echo [ERROR] No available port found from 8000 to 8020.")
+    server_failure_index = content.index(
+        '"%PYTHON_EXE%" -m uvicorn app.main:app --host 127.0.0.1 --port %PORT%'
+    )
+    error_label_index = content.index("\n:error\n")
+
+    for branch_index in (
+        missing_python_index,
+        missing_browser_index,
+        missing_env_example_index,
+        env_copy_failure_index,
+        no_port_index,
+        server_failure_index,
+    ):
+        assert branch_index < content.index("goto error", branch_index) < error_label_index
