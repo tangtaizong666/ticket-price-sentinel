@@ -34,3 +34,25 @@ def test_source_startup_script_delays_browser_open_until_server_starts() -> None
     assert "timeout /t" in lower_content
     assert 'start "" cmd /c' in lower_content
     assert 'start "" http://127.0.0.1:8000' not in lines
+
+
+def test_portable_launcher_uses_bundled_python_only() -> None:
+    script = Path("scripts/launch_portable.bat")
+
+    assert script.exists()
+    content = script.read_text(encoding="utf-8")
+    assert "runtime\\python\\python.exe" in content
+    assert "where python" not in content.lower()
+    assert "where py" not in content.lower()
+    assert "pip install" not in content.lower()
+    assert "playwright install" not in content.lower()
+
+
+def test_portable_launcher_sets_browser_path_and_finds_port() -> None:
+    content = Path("scripts/launch_portable.bat").read_text(encoding="utf-8")
+
+    assert "PLAYWRIGHT_BROWSERS_PATH" in content
+    assert "runtime\\ms-playwright" in content
+    assert "Get-NetTCPConnection" in content
+    assert "APP_BASE_URL" in content
+    assert "pause" in content.lower()
