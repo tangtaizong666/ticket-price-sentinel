@@ -177,3 +177,21 @@ def test_windows_portable_build_script_removes_nested_python_cache_files() -> No
         content,
         re.IGNORECASE,
     )
+
+
+def test_release_user_readme_exists_and_avoids_developer_jargon() -> None:
+    content = Path("README_使用说明.txt").read_text(encoding="utf-8")
+
+    assert "双击" in content
+    assert "启动机票监控.bat" in content
+    assert "登录携程" in content
+    assert "pip" not in content.lower()
+    assert "virtualenv" not in content.lower()
+
+
+def test_project_readme_mentions_windows_release_and_build_script() -> None:
+    content = Path("README.md").read_text(encoding="utf-8")
+
+    assert "FlyTicket-Windows" in content
+    assert "启动机票监控.bat" in content
+    assert "scripts/build_windows_portable.ps1" in content

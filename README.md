@@ -16,9 +16,17 @@
 - 不想反复手动搜索同一条航线的人
 - 希望在本机上运行，不依赖云服务的人
 
-## 运行方式
+## 普通用户：下载后双击使用
 
-### Windows 用户：推荐
+从 GitHub Release 下载 `FlyTicket-Windows-<version>.zip`，解压后双击：
+
+`启动机票监控.bat`
+
+发布包自带 Python 运行环境、运行依赖和 Playwright Chromium。普通用户不需要手动安装 Python、pip 依赖或浏览器组件。
+
+## 源码运行方式
+
+### Windows 开发者：推荐
 
 直接双击项目根目录里的：
 
@@ -234,6 +242,16 @@ cd /mnt/c/my_pycharm/fly_ticket
 
 当前完整测试集已经通过。
 
+## 构建 Windows 便携版
+
+维护者可以在 Windows PowerShell 中运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build_windows_portable.ps1 -Version dev
+```
+
+构建结果会输出到 `dist/FlyTicket-Windows/` 和 `dist/FlyTicket-Windows-dev.zip`。
+
 ## 目录说明
 
 - `app/`：后端代码、模板、静态资源
@@ -252,4 +270,4 @@ cd /mnt/c/my_pycharm/fly_ticket
 
 如果你只是普通用户，建议你先从这条路径开始：
 
-**双击 `start_fly_ticket.bat` → 登录携程 → 搜一次 → 保存一个监控任务**
+**下载 `FlyTicket-Windows-<version>.zip` → 解压 → 双击 `启动机票监控.bat` → 登录携程 → 搜一次 → 保存一个监控任务**
