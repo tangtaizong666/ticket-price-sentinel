@@ -19,3 +19,16 @@ def test_build_search_url_replaces_tokens_and_url_quotes_values() -> None:
         "&to=%E4%B8%8A%E6%B5%B7%2F%E8%99%B9%E6%A1%A5&date=2026-05-20"
         "&title=%E5%8C%97%E4%BA%AC%20%E9%A6%96%E9%83%BD-%E4%B8%8A%E6%B5%B7%2F%E8%99%B9%E6%A1%A5"
     )
+
+
+def test_build_search_url_converts_common_chinese_city_names_to_ctrip_codes() -> None:
+    template = "https://flights.ctrip.com/online/list/oneway-{origin}-{destination}?depdate={departure_date}"
+
+    result = build_search_url(
+        template=template,
+        origin="哈尔滨",
+        destination="重庆",
+        departure_date="2026-07-11",
+    )
+
+    assert result == "https://flights.ctrip.com/online/list/oneway-hrb-ckg?depdate=2026-07-11"

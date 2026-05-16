@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -64,6 +65,11 @@ class MonitorTaskBase(BaseModel):
     departure_time_filters: list[str] = Field(default_factory=list)
     flight_attribute_filters: list[str] = Field(default_factory=list)
     airline_filters: list[str] = Field(default_factory=list)
+    reminder_policy: Literal["no_repeat", "interval", "every_check"] = "interval"
+    unchanged_reminder_interval_minutes: int = 360
+    alert_sound_enabled: bool = True
+    alert_taskbar_enabled: bool = True
+    alert_popup_enabled: bool = True
 
     @model_validator(mode="after")
     def validate_monitor_constraints(self) -> "MonitorTaskBase":
@@ -73,6 +79,8 @@ class MonitorTaskBase(BaseModel):
             raise ValueError("target_price must be positive")
         if self.check_interval_minutes <= 0:
             raise ValueError("check_interval_minutes must be positive")
+        if self.unchanged_reminder_interval_minutes <= 0:
+            raise ValueError("unchanged_reminder_interval_minutes must be positive")
         return self
 
 
@@ -103,4 +111,17 @@ class MonitorHit(BaseModel):
     hit_at: datetime
     search_snapshot_json: list[dict]
     lowest_price: int
+    created_at: datetime
+
+
+class MonitorCheckResult(BaseModel):
+    id: int
+    monitor_task_id: int
+    checked_at: datetime
+    status: Literal["success", "error", "session_expired"]
+    lowest_price: int | None = None
+    is_target_hit: bool
+    notification_sent: bool
+    error_message: str | None = None
+    search_snapshot_json: list[dict]
     created_at: datetime

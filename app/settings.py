@@ -18,6 +18,10 @@ def _resolve_project_path(raw_path: str) -> Path:
     return PROJECT_ROOT / path
 
 
+def _env_flag(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(slots=True)
 class Settings:
     app_db_path: Path = field(
@@ -32,8 +36,16 @@ class Settings:
     )
     ctrip_snapshot_dir: Path = field(
         default_factory=lambda: _resolve_project_path(
-            os.getenv("CTRIP_SNAPSHOT_DIR", "tests/fixtures")
+            os.getenv("CTRIP_SNAPSHOT_DIR", "data/debug")
         )
+    )
+    ctrip_debug_snapshot_dir: Path = field(
+        default_factory=lambda: _resolve_project_path(
+            os.getenv("CTRIP_DEBUG_SNAPSHOT_DIR", "data/debug")
+        )
+    )
+    ctrip_save_debug_snapshot: bool = field(
+        default_factory=lambda: _env_flag("CTRIP_SAVE_DEBUG_SNAPSHOT", "0")
     )
     ctrip_search_url_template: str = os.getenv("CTRIP_SEARCH_URL_TEMPLATE", "")
     ctrip_session_url: str = os.getenv("CTRIP_SESSION_URL", "")
@@ -42,4 +54,13 @@ class Settings:
     )
     monitor_realert_cooldown_hours: int = field(
         default_factory=lambda: int(os.getenv("MONITOR_REALERT_COOLDOWN_HOURS", "6"))
+    )
+    monitor_realert_cooldown_enabled: bool = field(
+        default_factory=lambda: _env_flag("MONITOR_REALERT_COOLDOWN_ENABLED", "1")
+    )
+    monitor_failure_backoff_minutes: int = field(
+        default_factory=lambda: int(os.getenv("MONITOR_FAILURE_BACKOFF_MINUTES", "5"))
+    )
+    ctrip_auto_relogin_cooldown_minutes: int = field(
+        default_factory=lambda: int(os.getenv("CTRIP_AUTO_RELOGIN_COOLDOWN_MINUTES", "30"))
     )

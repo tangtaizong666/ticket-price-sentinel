@@ -51,6 +51,22 @@ class BrokenScraper:
         raise ScrapeFailedError("Unable to parse any flights from Ctrip search results")
 
 
+class CountingSessionManager:
+    def __init__(self) -> None:
+        self.relogin_calls = 0
+
+    async def open_relogin_window(self):
+        self.relogin_calls += 1
+        return {"status": "login_started", "url": "https://example.invalid/session"}
+
+    async def close(self):
+        pass
+
+
+def _auth_headers(app) -> dict[str, str]:
+    return {"X-FlyTicket-Token": app.state.local_request_token}
+
+
 def test_search_api_filters_results_returns_lowest_price_and_saves_history(tmp_path) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")
     app = create_app(settings=settings, scraper=FakeScraper())
@@ -66,7 +82,7 @@ def test_search_api_filters_results_returns_lowest_price_and_saves_history(tmp_p
         "airline_filters": ["东航"],
     }
 
-    search_response = client.post("/api/search", json=payload)
+    search_response = client.post("/api/search", json=payload, headers=_auth_headers(app))
 
     assert search_response.status_code == 200
     assert search_response.json()["lowest_price"] == 560
@@ -118,6 +134,7 @@ def test_search_api_returns_503_when_scraper_session_expires(tmp_path) -> None:
 
     response = client.post(
         "/api/search",
+        headers=_auth_headers(app),
         json={
             "origin_city": "北京",
             "destination_city": "上海",
@@ -135,6 +152,33 @@ def test_search_api_returns_503_when_scraper_session_expires(tmp_path) -> None:
     assert session_state.session_status == "expired"
 
 
+def test_search_api_auto_opens_relogin_once_within_cooldown_when_session_expires(tmp_path) -> None:
+    settings = Settings(
+        app_db_path=tmp_path / "app.db",
+        ctrip_session_url="https://example.invalid/session",
+        ctrip_auto_relogin_cooldown_minutes=30,
+    )
+    session_manager = CountingSessionManager()
+    app = create_app(
+        settings=settings,
+        scraper=ExpiredScraper(),
+        session_manager=session_manager,
+    )
+    client = TestClient(app)
+    payload = {
+        "origin_city": "北京",
+        "destination_city": "上海",
+        "departure_date": date(2026, 5, 20).isoformat(),
+    }
+
+    first_response = client.post("/api/search", json=payload, headers=_auth_headers(app))
+    second_response = client.post("/api/search", json=payload, headers=_auth_headers(app))
+
+    assert first_response.status_code == 503
+    assert second_response.status_code == 503
+    assert session_manager.relogin_calls == 1
+
+
 def test_search_api_returns_502_when_scraper_cannot_parse_results(tmp_path) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")
     app = create_app(settings=settings, scraper=BrokenScraper())
@@ -142,6 +186,7 @@ def test_search_api_returns_502_when_scraper_cannot_parse_results(tmp_path) -> N
 
     response = client.post(
         "/api/search",
+        headers=_auth_headers(app),
         json={
             "origin_city": "北京",
             "destination_city": "上海",
@@ -163,6 +208,7 @@ def test_history_rerun_saves_ready_session_state_after_success(tmp_path) -> None
 
     search_response = client.post(
         "/api/search",
+        headers=_auth_headers(app),
         json={
             "origin_city": "北京",
             "destination_city": "上海",
@@ -171,7 +217,7 @@ def test_history_rerun_saves_ready_session_state_after_success(tmp_path) -> None
     )
     history_id = search_response.json()["history_id"]
 
-    rerun_response = client.post(f"/api/history/{history_id}/rerun")
+    rerun_response = client.post(f"/api/history/{history_id}/rerun", headers=_auth_headers(app))
 
     assert rerun_response.status_code == 200
     session_state = get_session_state(settings)
@@ -186,6 +232,7 @@ def test_history_rerun_returns_503_and_saves_expired_when_scraper_session_expire
     setup_client = TestClient(setup_app)
     search_response = setup_client.post(
         "/api/search",
+        headers=_auth_headers(setup_app),
         json={
             "origin_city": "北京",
             "destination_city": "上海",
@@ -196,7 +243,7 @@ def test_history_rerun_returns_503_and_saves_expired_when_scraper_session_expire
 
     app = create_app(settings=settings, scraper=ExpiredScraper())
     client = TestClient(app)
-    response = client.post(f"/api/history/{history_id}/rerun")
+    response = client.post(f"/api/history/{history_id}/rerun", headers=_auth_headers(app))
 
     assert response.status_code == 503
     assert response.json() == {

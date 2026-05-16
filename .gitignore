@@ -6,9 +6,13 @@ __pycache__/
 *.pyo
 *.db
 *.sqlite3
-/data/playwright-profile/
-/data/*.html
+/data/*
+!/data/.gitkeep
 /tests/fixtures/last_live_search.html
 .superpowers/
 .worktrees/
+.hermes/
 dist/
+/runtime/
+*.zip
+*.tmp

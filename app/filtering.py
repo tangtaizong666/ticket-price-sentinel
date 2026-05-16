@@ -11,9 +11,10 @@ TIME_WINDOWS = {
 
 def apply_filters(flights: list[FlightResult], request: SearchRequest) -> list[FlightResult]:
     filtered: list[FlightResult] = []
+    max_price = getattr(request, "max_price", None)
 
     for flight in flights:
-        if request.max_price is not None and flight.price > request.max_price:
+        if max_price is not None and flight.price > max_price:
             continue
         if request.departure_time_filters and not _matches_time_window(
             flight, request.departure_time_filters

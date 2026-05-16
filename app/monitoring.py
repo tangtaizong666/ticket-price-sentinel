@@ -3,7 +3,13 @@ import json
 import sqlite3
 
 from app.db import connect
-from app.models import MonitorHit, MonitorTask, MonitorTaskCreate, MonitorTaskUpdate
+from app.models import (
+    MonitorCheckResult,
+    MonitorHit,
+    MonitorTask,
+    MonitorTaskCreate,
+    MonitorTaskUpdate,
+)
 from app.settings import Settings
 
 
@@ -22,11 +28,16 @@ def create_monitor_task(settings: Settings, payload: MonitorTaskCreate) -> Monit
                 departure_time_filters,
                 flight_attribute_filters,
                 airline_filters,
+                reminder_policy,
+                unchanged_reminder_interval_minutes,
+                alert_sound_enabled,
+                alert_taskbar_enabled,
+                alert_popup_enabled,
                 enabled,
                 next_check_at,
                 created_at,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.origin_city,
@@ -37,6 +48,11 @@ def create_monitor_task(settings: Settings, payload: MonitorTaskCreate) -> Monit
                 json.dumps(payload.departure_time_filters, ensure_ascii=False),
                 json.dumps(payload.flight_attribute_filters, ensure_ascii=False),
                 json.dumps(payload.airline_filters, ensure_ascii=False),
+                payload.reminder_policy,
+                payload.unchanged_reminder_interval_minutes,
+                int(payload.alert_sound_enabled),
+                int(payload.alert_taskbar_enabled),
+                int(payload.alert_popup_enabled),
                 1,
                 next_check_at.isoformat(),
                 now.isoformat(),
@@ -70,6 +86,35 @@ def get_monitor_task(settings: Settings, monitor_task_id: int) -> MonitorTask | 
     return _row_to_monitor_task(row) if row else None
 
 
+def claim_monitor_task_check(
+    settings: Settings,
+    task_id: int,
+    *,
+    expected_next_check_at: datetime,
+    claimed_until: datetime,
+) -> bool:
+    now = datetime.now(UTC)
+    with connect(settings) as connection:
+        cursor = connection.execute(
+            """
+            UPDATE monitor_tasks
+            SET next_check_at = ?,
+                updated_at = ?
+            WHERE id = ?
+              AND enabled = 1
+              AND next_check_at = ?
+            """,
+            (
+                claimed_until.isoformat(),
+                now.isoformat(),
+                task_id,
+                expected_next_check_at.isoformat(),
+            ),
+        )
+
+    return int(cursor.rowcount) == 1
+
+
 def update_monitor_task(
     settings: Settings,
     monitor_task_id: int,
@@ -94,6 +139,11 @@ def update_monitor_task(
                 departure_time_filters = ?,
                 flight_attribute_filters = ?,
                 airline_filters = ?,
+                reminder_policy = ?,
+                unchanged_reminder_interval_minutes = ?,
+                alert_sound_enabled = ?,
+                alert_taskbar_enabled = ?,
+                alert_popup_enabled = ?,
                 enabled = ?,
                 next_check_at = ?,
                 updated_at = ?
@@ -108,6 +158,11 @@ def update_monitor_task(
                 json.dumps(payload.departure_time_filters, ensure_ascii=False),
                 json.dumps(payload.flight_attribute_filters, ensure_ascii=False),
                 json.dumps(payload.airline_filters, ensure_ascii=False),
+                payload.reminder_policy,
+                payload.unchanged_reminder_interval_minutes,
+                int(payload.alert_sound_enabled),
+                int(payload.alert_taskbar_enabled),
+                int(payload.alert_popup_enabled),
                 int(enabled),
                 next_check_at.isoformat(),
                 now.isoformat(),
@@ -209,6 +264,107 @@ def list_monitor_hits(settings: Settings, monitor_task_id: int) -> list[MonitorH
     return [_row_to_monitor_hit(row) for row in rows]
 
 
+def delete_monitor_hit(settings: Settings, monitor_task_id: int, monitor_hit_id: int) -> int:
+    with connect(settings) as connection:
+        cursor = connection.execute(
+            "DELETE FROM monitor_hits WHERE monitor_task_id = ? AND id = ?",
+            (monitor_task_id, monitor_hit_id),
+        )
+
+    return int(cursor.rowcount)
+
+
+def record_monitor_check(
+    settings: Settings,
+    task_id: int,
+    *,
+    status: str,
+    lowest_price: int | None,
+    is_target_hit: bool,
+    notification_sent: bool,
+    error_message: str | None,
+    flights_snapshot: list[dict],
+    checked_at: datetime | None = None,
+) -> MonitorCheckResult:
+    timestamp = checked_at or datetime.now(UTC)
+    with connect(settings) as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO monitor_check_results (
+                monitor_task_id,
+                checked_at,
+                status,
+                lowest_price,
+                is_target_hit,
+                notification_sent,
+                error_message,
+                search_snapshot_json,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                task_id,
+                timestamp.isoformat(),
+                status,
+                lowest_price,
+                int(is_target_hit),
+                int(notification_sent),
+                error_message,
+                json.dumps(flights_snapshot, ensure_ascii=False),
+                timestamp.isoformat(),
+            ),
+        )
+        connection.execute(
+            """
+            DELETE FROM monitor_check_results
+            WHERE monitor_task_id = ?
+              AND id NOT IN (
+                  SELECT id
+                  FROM monitor_check_results
+                  WHERE monitor_task_id = ?
+                  ORDER BY checked_at DESC, id DESC
+                  LIMIT 30
+              )
+            """,
+            (task_id, task_id),
+        )
+        row = connection.execute(
+            "SELECT * FROM monitor_check_results WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    return _row_to_monitor_check(row)
+
+
+def list_monitor_checks(
+    settings: Settings,
+    monitor_task_id: int,
+) -> list[MonitorCheckResult]:
+    with connect(settings) as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM monitor_check_results
+            WHERE monitor_task_id = ?
+            ORDER BY checked_at DESC, id DESC
+            LIMIT 30
+            """,
+            (monitor_task_id,),
+        ).fetchall()
+
+    return [_row_to_monitor_check(row) for row in rows]
+
+
+def clear_monitor_checks(settings: Settings, monitor_task_id: int) -> int:
+    with connect(settings) as connection:
+        cursor = connection.execute(
+            "DELETE FROM monitor_check_results WHERE monitor_task_id = ?",
+            (monitor_task_id,),
+        )
+
+    return int(cursor.rowcount)
+
+
 def count_enabled_monitor_tasks(settings: Settings) -> int:
     with connect(settings) as connection:
         row = connection.execute(
@@ -235,6 +391,37 @@ def get_latest_monitor_hit(settings: Settings) -> tuple[MonitorTask, MonitorHit]
     return task, hit
 
 
+def list_monitor_alerts_after(
+    settings: Settings,
+    after_id: int,
+) -> list[dict[str, object]]:
+    with connect(settings) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                h.id AS hit_id,
+                h.monitor_task_id AS monitor_task_id,
+                t.origin_city AS origin_city,
+                t.destination_city AS destination_city,
+                t.departure_date AS departure_date,
+                h.lowest_price AS lowest_price,
+                t.target_price AS target_price,
+                h.hit_at AS hit_at,
+                t.alert_sound_enabled AS alert_sound_enabled,
+                t.alert_taskbar_enabled AS alert_taskbar_enabled,
+                t.alert_popup_enabled AS alert_popup_enabled
+            FROM monitor_hits h
+            JOIN monitor_tasks t ON t.id = h.monitor_task_id
+            WHERE h.id > ?
+            ORDER BY h.id ASC
+            LIMIT 50
+            """,
+            (after_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
 def _row_to_monitor_task(row: sqlite3.Row) -> MonitorTask:
     return MonitorTask(
         id=row["id"],
@@ -246,6 +433,15 @@ def _row_to_monitor_task(row: sqlite3.Row) -> MonitorTask:
         departure_time_filters=json.loads(row["departure_time_filters"]),
         flight_attribute_filters=json.loads(row["flight_attribute_filters"]),
         airline_filters=json.loads(row["airline_filters"]),
+        reminder_policy=_row_value(row, "reminder_policy", "interval"),
+        unchanged_reminder_interval_minutes=_row_value(
+            row,
+            "unchanged_reminder_interval_minutes",
+            360,
+        ),
+        alert_sound_enabled=bool(_row_value(row, "alert_sound_enabled", 1)),
+        alert_taskbar_enabled=bool(_row_value(row, "alert_taskbar_enabled", 1)),
+        alert_popup_enabled=bool(_row_value(row, "alert_popup_enabled", 1)),
         enabled=bool(row["enabled"]),
         last_checked_at=(
             datetime.fromisoformat(row["last_checked_at"])
@@ -275,3 +471,22 @@ def _row_to_monitor_hit(row: sqlite3.Row) -> MonitorHit:
         lowest_price=row["lowest_price"],
         created_at=datetime.fromisoformat(row["created_at"]),
     )
+
+
+def _row_to_monitor_check(row: sqlite3.Row) -> MonitorCheckResult:
+    return MonitorCheckResult(
+        id=row["id"],
+        monitor_task_id=row["monitor_task_id"],
+        checked_at=datetime.fromisoformat(row["checked_at"]),
+        status=row["status"],
+        lowest_price=row["lowest_price"],
+        is_target_hit=bool(row["is_target_hit"]),
+        notification_sent=bool(row["notification_sent"]),
+        error_message=row["error_message"],
+        search_snapshot_json=json.loads(row["search_snapshot_json"]),
+        created_at=datetime.fromisoformat(row["created_at"]),
+    )
+
+
+def _row_value(row: sqlite3.Row, key: str, default):
+    return row[key] if key in row.keys() and row[key] is not None else default

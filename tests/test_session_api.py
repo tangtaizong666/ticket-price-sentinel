@@ -10,12 +10,18 @@ from app.settings import Settings
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_settings_resolve_relative_runtime_paths_from_project_root() -> None:
+def test_settings_resolve_relative_runtime_paths_from_project_root(monkeypatch) -> None:
+    monkeypatch.delenv("CTRIP_SNAPSHOT_DIR", raising=False)
+
     settings = Settings()
 
     assert settings.app_db_path == PROJECT_ROOT / "data/app.db"
     assert settings.playwright_profile_dir == PROJECT_ROOT / "data/playwright-profile"
-    assert settings.ctrip_snapshot_dir == PROJECT_ROOT / "tests/fixtures"
+    assert settings.ctrip_snapshot_dir == PROJECT_ROOT / "data/debug"
+
+
+def _auth_headers(app) -> dict[str, str]:
+    return {"X-FlyTicket-Token": app.state.local_request_token}
 
 
 def test_create_app_shares_one_session_manager_between_relogin_and_scraper(tmp_path) -> None:
@@ -37,6 +43,9 @@ class StubSessionManager:
     async def close(self):
         self.closed = True
 
+    async def close_login_window(self):
+        self.closed = True
+
 
 class BrokenSessionManager:
     async def open_relogin_window(self):
@@ -55,19 +64,18 @@ def _read_session_state(db_path):
 
 def test_relogin_endpoint_returns_and_persists_login_started(tmp_path) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")
-    client = TestClient(
-        create_app(
-            settings=settings,
-            session_manager=StubSessionManager(
-                {
-                    "status": "login_started",
-                    "url": "https://example.invalid/session",
-                }
-            ),
+    app = create_app(
+        settings=settings,
+        session_manager=StubSessionManager(
+            {
+                "status": "login_started",
+                "url": "https://example.invalid/session",
+            }
         )
     )
+    client = TestClient(app)
 
-    response = client.post("/api/session/relogin")
+    response = client.post("/api/session/relogin", headers=_auth_headers(app))
 
     assert response.status_code == 200
     assert response.json() == {
@@ -81,16 +89,13 @@ def test_relogin_endpoint_returns_and_persists_login_started(tmp_path) -> None:
 
 def test_relogin_endpoint_returns_and_persists_missing_session_url(tmp_path) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")
-    client = TestClient(
-        create_app(
-            settings=settings,
-            session_manager=StubSessionManager(
-                {"status": "missing_session_url", "url": ""}
-            ),
-        )
+    app = create_app(
+        settings=settings,
+        session_manager=StubSessionManager({"status": "missing_session_url", "url": ""}),
     )
+    client = TestClient(app)
 
-    response = client.post("/api/session/relogin")
+    response = client.post("/api/session/relogin", headers=_auth_headers(app))
 
     assert response.status_code == 200
     assert response.json() == {"status": "missing_session_url", "url": ""}
@@ -101,14 +106,10 @@ def test_relogin_endpoint_returns_and_persists_missing_session_url(tmp_path) -> 
 
 def test_relogin_endpoint_returns_chinese_json_when_browser_profile_is_busy(tmp_path) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")
-    client = TestClient(
-        create_app(
-            settings=settings,
-            session_manager=BrokenSessionManager(),
-        )
-    )
+    app = create_app(settings=settings, session_manager=BrokenSessionManager())
+    client = TestClient(app)
 
-    response = client.post("/api/session/relogin")
+    response = client.post("/api/session/relogin", headers=_auth_headers(app))
 
     assert response.status_code == 503
     assert response.json() == {
@@ -118,6 +119,53 @@ def test_relogin_endpoint_returns_chinese_json_when_browser_profile_is_busy(tmp_
     row = _read_session_state(settings.app_db_path)
     assert row[0] == "relogin_failed"
     assert row[1] is None
+
+
+def test_confirm_login_endpoint_marks_session_ready(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    session_manager = StubSessionManager({})
+    app = create_app(settings=settings, session_manager=session_manager)
+    client = TestClient(app)
+
+    response = client.post("/api/session/confirm", headers=_auth_headers(app))
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "message": "已确认携程登录状态",
+        "login_card": {
+            "status": "已登录",
+            "detail": "携程登录可用",
+            "action_label": "重新登录",
+            "action_kind": "relogin",
+        },
+    }
+    row = _read_session_state(settings.app_db_path)
+    assert row[0] == "ready"
+    assert row[1] is not None
+    assert session_manager.closed is True
+
+
+def test_unsafe_api_requests_require_local_request_token(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    app = create_app(settings=settings, session_manager=StubSessionManager({}))
+    client = TestClient(app)
+
+    get_response = client.get("/api/history")
+    missing_token_response = client.post("/api/session/confirm")
+    wrong_token_response = client.post(
+        "/api/session/confirm",
+        headers={"X-FlyTicket-Token": "wrong-token"},
+    )
+    valid_token_response = client.post(
+        "/api/session/confirm",
+        headers=_auth_headers(app),
+    )
+
+    assert get_response.status_code == 200
+    assert missing_token_response.status_code == 403
+    assert wrong_token_response.status_code == 403
+    assert valid_token_response.status_code == 200
 
 
 def test_app_lifecycle_closes_session_manager(tmp_path) -> None:

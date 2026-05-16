@@ -49,9 +49,17 @@ def load_home_dashboard(settings: Settings) -> HomeDashboard:
     elif session_state is not None and session_state.session_status == "login_started":
         login_card = DashboardCard(
             title="登录状态",
-            status="登录进行中",
-            detail="已打开登录窗口，请在携程完成登录",
-            action_label="继续登录",
+            status="等待登录确认",
+            detail="如果没有看到携程登录窗口，请关闭旧窗口后重新登录",
+            action_label="重新登录",
+            action_kind="relogin",
+        )
+    elif session_state is not None and session_state.session_status == "relogin_failed":
+        login_card = DashboardCard(
+            title="登录状态",
+            status="登录窗口未打开",
+            detail="请关闭其它正在运行的飞票监控或携程登录窗口后重试",
+            action_label="重新登录",
             action_kind="relogin",
         )
     else:

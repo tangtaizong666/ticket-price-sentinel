@@ -108,6 +108,16 @@ def update_history(
     return _row_to_history(row)
 
 
+def delete_history(settings: Settings, history_id: int) -> int:
+    with connect(settings) as connection:
+        cursor = connection.execute(
+            "DELETE FROM search_history WHERE id = ?",
+            (history_id,),
+        )
+
+    return int(cursor.rowcount)
+
+
 def save_session_state(
     settings: Settings,
     session_status: str,

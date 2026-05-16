@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="fly-ticket-token" content="{{ local_request_token }}">
     <title>飞票监控</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=pinterest-soft-20260516">
 </head>
 <body>
     <main class="app-shell">
@@ -19,13 +20,33 @@
             </div>
         </header>
 
+        <section
+            id="monitor-alert-banner"
+            class="monitor-alert-banner"
+            aria-live="assertive"
+            hidden
+        >
+            <div>
+                <p class="panel-kicker">查到票了</p>
+                <h2 data-monitor-alert-title>机票监控命中</h2>
+                <p data-monitor-alert-message>有监控任务达到了目标价。</p>
+            </div>
+            <div class="monitor-alert-actions">
+                <button type="button" class="primary-action" data-monitor-alert-action="view">查看命中</button>
+                <button type="button" class="secondary-action" data-monitor-alert-action="dismiss">已知道</button>
+            </div>
+        </section>
+
         <section id="first-use-guide" class="panel guide-panel">
             <div class="panel-heading">
                 <div>
                     <p class="panel-kicker">开始使用</p>
                     <h2>{{ dashboard.guide_title }}</h2>
                 </div>
-                <button type="button" class="secondary-action" data-dashboard-action="search">去搜索</button>
+                <div class="guide-actions">
+                    <button type="button" class="secondary-action" data-dashboard-action="search">去搜索</button>
+                    <button type="button" class="primary-action" id="enable-monitor-alerts" data-dashboard-action="enable-alerts">启用提醒</button>
+                </div>
             </div>
             <ol class="guide-steps">
                 {% for step in dashboard.guide_steps %}
@@ -92,7 +113,7 @@
                     </label>
                     <label>
                         <span>最高价</span>
-                        <input type="number" name="max_price" placeholder="可不填" min="0" step="1">
+                        <input type="number" name="max_price" placeholder="可不填" min="1" step="1">
                     </label>
                     <div class="form-actions">
                         <button type="submit" class="primary-action">开始搜索</button>
@@ -199,12 +220,39 @@
                         </label>
                         <label>
                             <span>目标价</span>
-                            <input type="number" name="target_price" placeholder="低于或等于该价格时提醒" min="0" step="1">
+                            <input type="number" name="target_price" placeholder="低于或等于该价格时提醒" min="1" step="1">
                         </label>
                         <label>
                             <span>检查间隔（分钟）</span>
                             <input type="number" name="check_interval_minutes" value="30" min="1" step="1">
                         </label>
+                        <label>
+                            <span>价格没有变化时的提醒</span>
+                            <select name="reminder_policy">
+                                <option value="interval" selected>间隔提醒</option>
+                                <option value="no_repeat">不重复提醒</option>
+                                <option value="every_check">每次检查都提醒</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>间隔提醒分钟</span>
+                            <input type="number" name="unchanged_reminder_interval_minutes" value="360" min="1" step="1">
+                        </label>
+                        <details class="alert-options" open>
+                            <summary>提醒方式</summary>
+                            <label class="alert-option-row">
+                                <input type="checkbox" name="alert_sound_enabled" checked>
+                                <span>声音提醒</span>
+                            </label>
+                            <label class="alert-option-row">
+                                <input type="checkbox" name="alert_taskbar_enabled" checked>
+                                <span>任务栏提醒</span>
+                            </label>
+                            <label class="alert-option-row">
+                                <input type="checkbox" name="alert_popup_enabled" checked>
+                                <span>系统弹窗提醒</span>
+                            </label>
+                        </details>
                         <div class="form-actions">
                             <button type="submit" class="primary-action">保存监控</button>
                             <button type="button" class="secondary-action" id="monitor-form-reset">清空监控草稿</button>
@@ -227,7 +275,7 @@
                                             <p>{{ item.departure_date }} · 目标 ¥{{ item.target_price }} · 每 {{ item.check_interval_minutes }} 分钟检查</p>
                                         </div>
                                         <div class="history-actions monitor-actions">
-                                            <button type="button" data-monitor-action="edit" data-monitor-id="{{ item.id }}">编辑</button>
+                                            <button type="button" data-monitor-action="edit" data-monitor-id="{{ item.id }}">查看</button>
                                             <button type="button" data-monitor-action="toggle" data-monitor-id="{{ item.id }}">{{ '暂停' if item.enabled else '恢复' }}</button>
                                         </div>
                                     </article>
@@ -253,7 +301,7 @@
                         <div class="monitor-detail-copy">
                             <p>选择一个监控任务，可查看最近检查和命中记录。</p>
                             <div class="monitor-detail-actions">
-                                <button type="button" class="text-action" data-monitor-action="edit" data-monitor-id="">编辑</button>
+                                <button type="button" class="text-action" data-monitor-action="edit" data-monitor-id="">查看</button>
                                 <button type="button" class="text-action" data-monitor-action="toggle" data-monitor-id="">暂停</button>
                             </div>
                         </div>
@@ -279,6 +327,7 @@
                                 <div class="history-actions">
                                     <button type="button" data-history-action="rerun" data-history-id="{{ item.id }}">重新搜索</button>
                                     <button type="button" data-history-action="edit" data-history-id="{{ item.id }}">编辑</button>
+                                    <button type="button" data-history-action="delete" data-history-id="{{ item.id }}">删除</button>
                                 </div>
                             </article>
                         {% endfor %}

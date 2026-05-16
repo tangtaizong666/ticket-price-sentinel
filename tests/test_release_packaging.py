@@ -71,6 +71,12 @@ def test_env_example_includes_portable_browser_path() -> None:
     content = Path(".env.example").read_text(encoding="utf-8")
 
     assert "PLAYWRIGHT_BROWSERS_PATH=runtime/ms-playwright" in content
+    assert "CTRIP_SNAPSHOT_DIR=data/debug" in content
+    assert "CTRIP_SAVE_DEBUG_SNAPSHOT=0" in content
+    assert "CTRIP_DEBUG_SNAPSHOT_DIR=data/debug" in content
+    assert "MONITOR_REALERT_COOLDOWN_ENABLED=1" in content
+    assert "MONITOR_FAILURE_BACKOFF_MINUTES=5" in content
+    assert "CTRIP_AUTO_RELOGIN_COOLDOWN_MINUTES=30" in content
 
 
 def test_settings_exposes_app_base_url(monkeypatch) -> None:
@@ -81,6 +87,24 @@ def test_settings_exposes_app_base_url(monkeypatch) -> None:
     settings = Settings()
 
     assert settings.app_base_url == "http://127.0.0.1:8123"
+
+
+def test_settings_exposes_debug_snapshot_and_auto_relogin_config(monkeypatch) -> None:
+    monkeypatch.setenv("CTRIP_SAVE_DEBUG_SNAPSHOT", "1")
+    monkeypatch.setenv("CTRIP_DEBUG_SNAPSHOT_DIR", "data/custom-debug")
+    monkeypatch.setenv("MONITOR_REALERT_COOLDOWN_ENABLED", "0")
+    monkeypatch.setenv("MONITOR_FAILURE_BACKOFF_MINUTES", "7")
+    monkeypatch.setenv("CTRIP_AUTO_RELOGIN_COOLDOWN_MINUTES", "45")
+
+    from app.settings import Settings
+
+    settings = Settings()
+
+    assert settings.ctrip_save_debug_snapshot is True
+    assert settings.ctrip_debug_snapshot_dir == Path.cwd() / "data/custom-debug"
+    assert settings.monitor_realert_cooldown_enabled is False
+    assert settings.monitor_failure_backoff_minutes == 7
+    assert settings.ctrip_auto_relogin_cooldown_minutes == 45
 
 
 def test_windows_portable_build_script_exists_and_defines_layout() -> None:
@@ -195,6 +219,32 @@ def test_windows_portable_build_script_removes_nested_python_cache_files() -> No
     )
 
 
+def test_windows_portable_build_script_verifies_download_hashes() -> None:
+    content = Path("scripts/build_windows_portable.ps1").read_text(encoding="utf-8")
+
+    assert "[string]$PythonZipSha256" in content
+    assert "[string]$GetPipSha256" in content
+    assert "8D3F33BE9EB810F23C102F08475AF2854E50484B8E4E06275E937BE61CE3D2FB" in content
+    assert "66904BCCB878E363DB6236EA900E6935E507DCB887E9F178F6212EDFE7F46A76" in content
+    assert "Get-FileHash" in content
+    assert "Assert-FileSha256" in content
+    assert content.index("Invoke-WebRequest -Uri $pythonZipUrl -OutFile $pythonZip") < content.index(
+        'Assert-FileSha256 -Path $pythonZip -ExpectedSha256 $PythonZipSha256'
+    )
+    assert content.index('Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $getPip') < content.index(
+        'Assert-FileSha256 -Path $getPip -ExpectedSha256 $GetPipSha256'
+    )
+
+
+def test_gitignore_ignores_all_runtime_data_except_placeholder() -> None:
+    content = Path(".gitignore").read_text(encoding="utf-8")
+
+    assert "/data/*" in content
+    assert "!/data/.gitkeep" in content
+    assert "/data/playwright-profile/" not in content
+    assert "/data/*.html" not in content
+
+
 def test_release_user_readme_exists_and_avoids_developer_jargon() -> None:
     content = Path("README_使用说明.txt").read_text(encoding="utf-8")
 
@@ -213,6 +263,15 @@ def test_project_readme_mentions_windows_release_and_build_script() -> None:
     assert "scripts/build_windows_portable.ps1" in content
 
 
+def test_project_readme_mentions_source_zip_click_to_run_path() -> None:
+    content = Path("README.md").read_text(encoding="utf-8")
+
+    assert "Code → Download ZIP" in content
+    assert "start_fly_ticket.bat" in content
+    assert "首次运行会联网下载内置 Python" in content
+    assert "不需要提前安装 Python" in content
+
+
 def test_project_readme_highlights_chinese_user_and_developer_paths() -> None:
     content = Path("README.md").read_text(encoding="utf-8")
 
@@ -220,6 +279,26 @@ def test_project_readme_highlights_chinese_user_and_developer_paths() -> None:
     assert "普通用户路径" in content
     assert "开发者路径" in content
     assert "问题排查" in content
+
+
+def test_project_readme_has_windows_and_unix_manual_commands() -> None:
+    content = Path("README.md").read_text(encoding="utf-8")
+
+    assert "Windows PowerShell" in content
+    assert ".\\.venv\\Scripts\\python.exe -m pip install -r requirements-dev.txt" in content
+    assert ".\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000" in content
+    assert "macOS / Linux" in content
+    assert ".venv/bin/python -m pip install -r requirements-dev.txt" in content
+
+
+def test_github_actions_ci_runs_release_hygiene_checks_without_building_portable_package() -> None:
+    content = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "python -m pip check" in content
+    assert "python -m compileall -q app scripts" in content
+    assert "python -m pytest -q" in content
+    assert "scripts/build_windows_portable.ps1" not in content
+    assert "playwright install" not in content
 
 
 def test_ctrip_fixture_does_not_contain_obvious_live_session_material() -> None:

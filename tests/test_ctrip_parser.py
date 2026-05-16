@@ -46,3 +46,70 @@ def test_parse_search_results_extracts_required_fields() -> None:
     assert any(flight.stop_info == "直飞" for flight in direct_flights)
     assert any("中转" in flight.stop_info for flight in connecting_flights)
     assert {flight.flight_no for flight in connecting_flights} == {"SC7604"}
+
+
+def test_parse_search_results_ignores_discount_amount_when_extracting_price() -> None:
+    html = """
+    <div class="flight-item domestic">
+        <div class="airline-name">龙江航空</div>
+        <div>LT6689</div>
+        <div>06:30 太平国际机场 T2 经停 榆林 榆阳机场 45m 11:45 江北国际机场 T3</div>
+        <div>已减¥155 普通会员可享</div>
+        <div class="price over-size"><span class="price">¥2325</span><span>起</span></div>
+        <button class="btn-book">订票</button>
+    </div>
+    """
+    request = SearchRequest(
+        origin_city="哈尔滨",
+        destination_city="重庆",
+        departure_date=date(2026, 7, 11),
+    )
+
+    flights = parse_search_results(html, request, "https://example.invalid/results")
+
+    assert len(flights) == 1
+    assert flights[0].price == 2325
+
+
+def test_parse_search_results_ignores_cabin_discount_when_extracting_price() -> None:
+    html = """
+    <div class="flight-item domestic">
+        <div class="airline-name">南方航空</div>
+        <div>CZ2334</div>
+        <div>18:35 太平国际机场 T2 经停 青岛 00:55 江北国际机场 T3</div>
+        <div class="price over-size"><span class="price">¥1290 起 经济舱5.3折</span></div>
+        <button class="btn-book">订票</button>
+    </div>
+    """
+    request = SearchRequest(
+        origin_city="哈尔滨",
+        destination_city="重庆",
+        departure_date=date(2026, 7, 11),
+    )
+
+    flights = parse_search_results(html, request, "https://example.invalid/results")
+
+    assert len(flights) == 1
+    assert flights[0].price == 1290
+
+
+def test_parse_search_results_keeps_flight_when_flight_number_is_missing() -> None:
+    html = """
+    <div class="flight-item domestic">
+        <div class="airline-name">长龙航空</div>
+        <div>12:00 太平国际机场 T2 16:15 江北国际机场 T3</div>
+        <div class="price over-size"><span class="price">¥1460</span><span>起</span></div>
+        <button class="btn-book">订票</button>
+    </div>
+    """
+    request = SearchRequest(
+        origin_city="哈尔滨",
+        destination_city="重庆",
+        departure_date=date(2026, 7, 11),
+    )
+
+    flights = parse_search_results(html, request, "https://example.invalid/results")
+
+    assert len(flights) == 1
+    assert flights[0].flight_no == "未知航班"
+    assert flights[0].price == 1460

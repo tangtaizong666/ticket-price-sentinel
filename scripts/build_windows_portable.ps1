@@ -1,7 +1,9 @@
 param(
     [string]$Version = "dev",
     [string]$PythonVersion = "3.12.8",
-    [string]$DistRoot = "dist"
+    [string]$DistRoot = "dist",
+    [string]$PythonZipSha256 = "8D3F33BE9EB810F23C102F08475AF2854E50484B8E4E06275E937BE61CE3D2FB",
+    [string]$GetPipSha256 = "66904BCCB878E363DB6236EA900E6935E507DCB887E9F178F6212EDFE7F46A76"
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,6 +73,23 @@ function Copy-OptionalItem {
     }
 }
 
+function Assert-FileSha256 {
+    param(
+        [string]$Path,
+        [string]$ExpectedSha256
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedSha256)) {
+        return
+    }
+
+    $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+    $normalizedExpectedSha256 = $ExpectedSha256.ToUpperInvariant()
+    if ($actualSha256 -ne $normalizedExpectedSha256) {
+        throw "SHA256 mismatch for $Path. Expected $normalizedExpectedSha256 but got $actualSha256."
+    }
+}
+
 function Remove-PackagedPythonCache {
     Get-ChildItem -LiteralPath $packageRoot -Recurse -Directory -Filter "__pycache__" |
         Remove-Item -Recurse -Force
@@ -94,6 +113,7 @@ $pythonZipUrl = "https://www.python.org/ftp/python/$PythonVersion/python-$Python
 $getPip = Join-Path $downloadsRoot "get-pip.py"
 
 Invoke-WebRequest -Uri $pythonZipUrl -OutFile $pythonZip
+Assert-FileSha256 -Path $pythonZip -ExpectedSha256 $PythonZipSha256
 Expand-Archive -Path $pythonZip -DestinationPath $pythonRoot -Force
 
 $pthFile = Get-ChildItem -Path $pythonRoot -Filter "python*._pth" | Select-Object -First 1
@@ -113,6 +133,7 @@ $pthContent = $pthContent | ForEach-Object {
 Set-Content -LiteralPath $pthFile.FullName -Value $pthContent -Encoding ASCII
 
 Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $getPip
+Assert-FileSha256 -Path $getPip -ExpectedSha256 $GetPipSha256
 & (Join-Path $pythonRoot "python.exe") $getPip
 & (Join-Path $pythonRoot "python.exe") -m pip install --no-warn-script-location -r (Join-Path $repoRoot "requirements.txt")
 

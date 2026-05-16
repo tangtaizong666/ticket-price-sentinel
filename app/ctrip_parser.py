@@ -19,6 +19,7 @@ FLIGHT_NO_RE = re.compile(r"\b([A-Z]{2}\d{3,4})\b")
 EMBEDDED_FLIGHT_NO_RE = re.compile(r"([A-Z]{2}\d{3,4})(?=[^A-Z0-9]|$)")
 TIME_RE = re.compile(r"\b(\d{2}:\d{2})\b")
 PRICE_RE = re.compile(r"[¥￥]\s*(\d+)")
+PRICE_WITH_START_RE = re.compile(r"[¥￥]\s*(\d+)\s*起")
 AIRLINE_FALLBACK_RE = re.compile(r"([一-鿿]{2,}(?:航空|航司))")
 DIRECT_WORDS = ("直飞", "无中转")
 STOP_WORDS = ("经停", "中转")
@@ -68,7 +69,7 @@ def _parse_card(
     price = _extract_price(card, text)
     airline = _extract_airline(card, text)
 
-    if not flight_no or len(times) < 2 or price is None or not airline:
+    if len(times) < 2 or price is None or not airline:
         return None
 
     href = _extract_deeplink(card, fallback_search_url)
@@ -76,7 +77,7 @@ def _parse_card(
     is_direct = stop_info == "直飞"
 
     return FlightResult(
-        flight_no=flight_no,
+        flight_no=flight_no or "未知航班",
         airline=airline,
         origin_city=request.origin_city,
         destination_city=request.destination_city,
@@ -103,14 +104,32 @@ def _extract_flight_no(card: Tag, text: str) -> str | None:
 
 
 def _extract_price(card: Tag, text: str) -> int | None:
-    match = PRICE_RE.search(text)
+    price_node = card.select_one(
+        ".price.over-size .price, .flight-price .price, "
+        "[class*='price'] [class='price'], [class*='price']"
+    )
+    if price_node is None:
+        start_match = PRICE_WITH_START_RE.search(text)
+        if start_match:
+            return int(start_match.group(1))
+
+        for match in PRICE_RE.finditer(text):
+            prefix = text[max(0, match.start() - 6) : match.start()]
+            if "已减" in prefix or "优惠" in prefix:
+                continue
+            return int(match.group(1))
+        return None
+
+    price_text = price_node.get_text(" ", strip=True)
+    match = PRICE_RE.search(price_text)
     if match:
         return int(match.group(1))
 
-    price_node = card.select_one(".price.over-size .price, .flight-price .price")
-    if price_node is None:
-        return None
-    digits = "".join(ch for ch in price_node.get_text(strip=True) if ch.isdigit())
+    start_match = PRICE_WITH_START_RE.search(price_text)
+    if start_match:
+        return int(start_match.group(1))
+
+    digits = "".join(ch for ch in price_text if ch.isdigit())
     return int(digits) if digits else None
 
 

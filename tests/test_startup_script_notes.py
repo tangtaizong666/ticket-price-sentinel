@@ -8,13 +8,25 @@ def test_source_startup_script_keeps_errors_visible() -> None:
     assert "Fly Ticket" in content
 
 
-def test_source_startup_script_uses_development_environment() -> None:
+def test_source_startup_script_can_bootstrap_runtime_without_system_python() -> None:
     content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
 
-    assert ".venv\\Scripts\\python.exe" in content
-    assert "requirements-dev.txt" in content
+    assert 'set "RUNTIME_PYTHON_DIR=%RUNTIME_DIR%\\python"' in content
+    assert 'set "PYTHON_EXE=%RUNTIME_PYTHON_DIR%\\python.exe"' in content
+    assert "python-%PYTHON_VERSION%-embed-amd64.zip" in content
+    assert "https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip" in content
+    assert "https://bootstrap.pypa.io/get-pip.py" in content
+    assert "Get-FileHash" in content
+    assert "8D3F33BE9EB810F23C102F08475AF2854E50484B8E4E06275E937BE61CE3D2FB" in content
+    assert "66904BCCB878E363DB6236EA900E6935E507DCB887E9F178F6212EDFE7F46A76" in content
+
+
+def test_source_startup_script_installs_runtime_requirements_only() -> None:
+    content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
+
+    assert "requirements.txt" in content
+    assert "requirements-dev.txt" not in content
     assert "playwright install chromium" in content.lower()
-    assert "runtime\\python\\python.exe" not in content
 
 
 def test_source_startup_script_copies_env_before_installing_browser() -> None:
@@ -26,6 +38,25 @@ def test_source_startup_script_copies_env_before_installing_browser() -> None:
     assert env_copy_index < playwright_install_index
 
 
+def test_source_startup_script_validates_supported_python_version() -> None:
+    content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
+
+    assert "sys.version_info >= (3, 10)" in content
+    assert "Python 3.10" in content
+    assert "-c \"import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)\"" in content
+
+
+def test_source_startup_script_finds_available_local_port() -> None:
+    content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
+
+    assert "TcpListener" in content
+    assert "[System.Net.IPAddress]::Parse('127.0.0.1')" in content
+    assert "for /L %%P in (8000,1,8020)" in content
+    assert 'set "APP_BASE_URL=http://127.0.0.1:%PORT%"' in content
+    assert 'start "" cmd /c "timeout /t 2 /nobreak >nul && start "" "%APP_BASE_URL%""' in content
+    assert 'call "%PYTHON_EXE%" -m uvicorn app.main:app --host 127.0.0.1 --port %PORT%' in content
+
+
 def test_source_startup_script_delays_browser_open_until_server_starts() -> None:
     content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
     lower_content = content.lower()
@@ -34,6 +65,7 @@ def test_source_startup_script_delays_browser_open_until_server_starts() -> None
     assert "timeout /t" in lower_content
     assert 'start "" cmd /c' in lower_content
     assert 'start "" http://127.0.0.1:8000' not in lines
+    assert "http://127.0.0.1:8000" not in content
 
 
 def test_portable_launcher_uses_bundled_python_only() -> None:

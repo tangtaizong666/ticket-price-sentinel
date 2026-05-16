@@ -16,9 +16,17 @@ class CtripSessionManager:
         if not self.settings.ctrip_session_url:
             return {"status": "missing_session_url", "url": ""}
 
-        context = await self.get_context()
-        page = context.pages[0] if context.pages else await context.new_page()
-        await page.goto(self.settings.ctrip_session_url, wait_until="domcontentloaded")
+        try:
+            context = await self.get_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            await page.goto(self.settings.ctrip_session_url, wait_until="domcontentloaded")
+        except Exception as exc:
+            if not _is_closed_context_error(exc):
+                raise
+            await self.close()
+            context = await self.get_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            await page.goto(self.settings.ctrip_session_url, wait_until="domcontentloaded")
         return {"status": "login_started", "url": self.settings.ctrip_session_url}
 
     async def get_context(self) -> BrowserContext:
@@ -47,3 +55,11 @@ class CtripSessionManager:
             await context.close()
         if playwright is not None:
             await playwright.stop()
+
+    async def close_login_window(self) -> None:
+        await self.close()
+
+
+def _is_closed_context_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "context or browser has been closed" in message or "target page" in message

@@ -22,16 +22,28 @@ def test_home_dashboard_guides_first_use_when_no_session_or_monitors(tmp_path) -
 
 
 
-def test_home_dashboard_shows_intermediate_status_when_login_has_only_started(tmp_path) -> None:
+def test_home_dashboard_shows_retry_status_when_login_has_only_started(tmp_path) -> None:
     settings = Settings(app_db_path=tmp_path / "app.db")
     init_db(settings)
     save_session_state(settings, "login_started")
 
     dashboard = load_home_dashboard(settings)
 
-    assert dashboard.login_card.status == "登录进行中"
-    assert dashboard.login_card.detail == "已打开登录窗口，请在携程完成登录"
-    assert dashboard.login_card.action_label == "继续登录"
+    assert dashboard.login_card.status == "等待登录确认"
+    assert dashboard.login_card.detail == "如果没有看到携程登录窗口，请关闭旧窗口后重新登录"
+    assert dashboard.login_card.action_label == "重新登录"
+
+
+def test_home_dashboard_shows_clear_status_when_relogin_failed(tmp_path) -> None:
+    settings = Settings(app_db_path=tmp_path / "app.db")
+    init_db(settings)
+    save_session_state(settings, "relogin_failed")
+
+    dashboard = load_home_dashboard(settings)
+
+    assert dashboard.login_card.status == "登录窗口未打开"
+    assert dashboard.login_card.detail == "请关闭其它正在运行的飞票监控或携程登录窗口后重试"
+    assert dashboard.login_card.action_label == "重新登录"
 
 
 def test_home_dashboard_shows_ready_and_expired_session_states(tmp_path) -> None:
@@ -91,7 +103,7 @@ def test_home_dashboard_surfaces_login_monitor_and_latest_hit_state(tmp_path) ->
 
     dashboard = load_home_dashboard(settings)
 
-    assert dashboard.login_card.status == "登录进行中"
+    assert dashboard.login_card.status == "等待登录确认"
     assert dashboard.monitor_card.status == "1 个任务正在运行"
     assert dashboard.latest_hit_card.status == "bjs → sha"
     assert dashboard.latest_hit_card.detail == "最低价 ¥380"

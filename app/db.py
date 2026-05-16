@@ -46,6 +46,11 @@ def init_db(settings: Settings) -> None:
                 departure_time_filters TEXT NOT NULL,
                 flight_attribute_filters TEXT NOT NULL,
                 airline_filters TEXT NOT NULL,
+                reminder_policy TEXT NOT NULL DEFAULT 'interval',
+                unchanged_reminder_interval_minutes INTEGER NOT NULL DEFAULT 360,
+                alert_sound_enabled INTEGER NOT NULL DEFAULT 1,
+                alert_taskbar_enabled INTEGER NOT NULL DEFAULT 1,
+                alert_popup_enabled INTEGER NOT NULL DEFAULT 1,
                 enabled INTEGER NOT NULL,
                 last_checked_at TEXT,
                 next_check_at TEXT NOT NULL,
@@ -66,5 +71,65 @@ def init_db(settings: Settings) -> None:
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (monitor_task_id) REFERENCES monitor_tasks(id)
             );
+
+            CREATE TABLE IF NOT EXISTS monitor_check_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_task_id INTEGER NOT NULL,
+                checked_at TEXT NOT NULL,
+                status TEXT NOT NULL,
+                lowest_price INTEGER,
+                is_target_hit INTEGER NOT NULL,
+                notification_sent INTEGER NOT NULL,
+                error_message TEXT,
+                search_snapshot_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (monitor_task_id) REFERENCES monitor_tasks(id)
+            );
             """
+        )
+        _ensure_column(
+            connection,
+            "monitor_tasks",
+            "reminder_policy",
+            "TEXT NOT NULL DEFAULT 'interval'",
+        )
+        _ensure_column(
+            connection,
+            "monitor_tasks",
+            "unchanged_reminder_interval_minutes",
+            "INTEGER NOT NULL DEFAULT 360",
+        )
+        _ensure_column(
+            connection,
+            "monitor_tasks",
+            "alert_sound_enabled",
+            "INTEGER NOT NULL DEFAULT 1",
+        )
+        _ensure_column(
+            connection,
+            "monitor_tasks",
+            "alert_taskbar_enabled",
+            "INTEGER NOT NULL DEFAULT 1",
+        )
+        _ensure_column(
+            connection,
+            "monitor_tasks",
+            "alert_popup_enabled",
+            "INTEGER NOT NULL DEFAULT 1",
+        )
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_definition: str,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
         )
