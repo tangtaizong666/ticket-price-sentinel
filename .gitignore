@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.db
+*.sqlite
 *.sqlite3
 /data/*
 !/data/.gitkeep
@@ -12,7 +13,10 @@ __pycache__/
 .superpowers/
 .worktrees/
 .hermes/
+/docs/superpowers/
 dist/
 /runtime/
 *.zip
 *.tmp
+*.log
+*.err.log
