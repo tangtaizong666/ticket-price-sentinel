@@ -20,6 +20,9 @@ set "PYTHON_EXE=%RUNTIME_PYTHON_DIR%\python.exe"
 set "PYTHON_ZIP=%DOWNLOAD_DIR%\python-%PYTHON_VERSION%-embed-amd64.zip"
 set "GET_PIP=%DOWNLOAD_DIR%\get-pip.py"
 set "PLAYWRIGHT_BROWSERS_PATH=%RUNTIME_DIR%\ms-playwright"
+set "PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=120000"
+set "SOURCE_VENV_DIR=%CD%\.venv"
+set "SOURCE_VENV_PYTHON=%SOURCE_VENV_DIR%\Scripts\python.exe"
 
 if exist "%PYTHON_EXE%" goto python_ready
 
@@ -40,12 +43,17 @@ if defined BOOTSTRAP_PYTHON_CMD (
 goto bootstrap_runtime_python
 
 :create_venv
-if not exist ".venv\Scripts\python.exe" (
-  echo 正在创建虚拟环境 .venv ...
-  %BOOTSTRAP_PYTHON_CMD% -m venv .venv
+if exist ".venv" if not exist "%SOURCE_VENV_PYTHON%" (
+  echo 检测到已有 .venv 不是 Windows 虚拟环境，改用 .venv-windows ...
+  set "SOURCE_VENV_DIR=%CD%\.venv-windows"
+  set "SOURCE_VENV_PYTHON=%CD%\.venv-windows\Scripts\python.exe"
+)
+if not exist "%SOURCE_VENV_PYTHON%" (
+  echo 正在创建虚拟环境 %SOURCE_VENV_DIR% ...
+  %BOOTSTRAP_PYTHON_CMD% -m venv "%SOURCE_VENV_DIR%"
   if errorlevel 1 goto bootstrap_runtime_python
 )
-set "PYTHON_EXE=%CD%\.venv\Scripts\python.exe"
+set "PYTHON_EXE=%SOURCE_VENV_PYTHON%"
 goto python_ready
 
 :bootstrap_runtime_python
@@ -58,7 +66,7 @@ if not exist "%RUNTIME_PYTHON_DIR%" mkdir "%RUNTIME_PYTHON_DIR%"
 if errorlevel 1 goto error
 
 echo 正在下载 Python %PYTHON_VERSION% ...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip' -OutFile '%PYTHON_ZIP%'; $hash = (Get-FileHash -LiteralPath '%PYTHON_ZIP%' -Algorithm SHA256).Hash.ToUpperInvariant(); if ($hash -ne '%PYTHON_ZIP_SHA256%') { throw \"Python zip SHA256 mismatch: $hash\" }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip' -OutFile '%PYTHON_ZIP%'; $hash = (Get-FileHash -LiteralPath '%PYTHON_ZIP%' -Algorithm SHA256).Hash.ToUpperInvariant(); if ($hash -ne '%PYTHON_ZIP_SHA256%') { throw ('Python zip SHA256 mismatch: ' + $hash) }"
 if errorlevel 1 goto error
 
 echo 正在解压内置 Python ...
@@ -66,7 +74,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference =
 if errorlevel 1 goto error
 
 echo 正在下载 pip 安装器 ...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GET_PIP%'; $hash = (Get-FileHash -LiteralPath '%GET_PIP%' -Algorithm SHA256).Hash.ToUpperInvariant(); if ($hash -ne '%GET_PIP_SHA256%') { throw \"get-pip.py SHA256 mismatch: $hash\" }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GET_PIP%'; $hash = (Get-FileHash -LiteralPath '%GET_PIP%' -Algorithm SHA256).Hash.ToUpperInvariant(); if ($hash -ne '%GET_PIP_SHA256%') { throw ('get-pip.py SHA256 mismatch: ' + $hash) }"
 if errorlevel 1 goto error
 
 echo 正在安装 pip ...

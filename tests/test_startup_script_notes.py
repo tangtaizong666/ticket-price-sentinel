@@ -1,6 +1,20 @@
 from pathlib import Path
 
 
+def _count_bare_lf(path: Path) -> int:
+    content = path.read_bytes()
+    return sum(
+        1
+        for index, byte in enumerate(content)
+        if byte == 0x0A and (index == 0 or content[index - 1] != 0x0D)
+    )
+
+
+def test_windows_batch_launchers_use_crlf_line_endings() -> None:
+    assert _count_bare_lf(Path("start_fly_ticket.bat")) == 0
+    assert _count_bare_lf(Path("scripts/launch_portable.bat")) == 0
+
+
 def test_source_startup_script_keeps_errors_visible() -> None:
     content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
 
@@ -27,6 +41,25 @@ def test_source_startup_script_installs_runtime_requirements_only() -> None:
     assert "requirements.txt" in content
     assert "requirements-dev.txt" not in content
     assert "playwright install chromium" in content.lower()
+    assert 'set "PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=120000"' in content
+
+
+def test_source_startup_script_preserves_non_windows_venv_directories() -> None:
+    content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
+
+    assert 'set "SOURCE_VENV_DIR=%CD%\\.venv"' in content
+    assert 'set "SOURCE_VENV_PYTHON=%SOURCE_VENV_DIR%\\Scripts\\python.exe"' in content
+    assert 'set "SOURCE_VENV_DIR=%CD%\\.venv-windows"' in content
+    assert 'set "SOURCE_VENV_PYTHON=%CD%\\.venv-windows\\Scripts\\python.exe"' in content
+    assert "检测到已有 .venv 不是 Windows 虚拟环境" in content
+
+
+def test_source_startup_script_uses_batch_safe_powershell_quoting() -> None:
+    content = Path("start_fly_ticket.bat").read_text(encoding="utf-8")
+
+    assert '\\"' not in content
+    assert "throw ('Python zip SHA256 mismatch: ' + $hash)" in content
+    assert "throw ('get-pip.py SHA256 mismatch: ' + $hash)" in content
 
 
 def test_source_startup_script_copies_env_before_installing_browser() -> None:
